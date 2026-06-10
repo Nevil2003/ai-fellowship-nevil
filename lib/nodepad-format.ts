@@ -30,6 +30,8 @@ export interface NodepadBlock {
   isUnrelated?: boolean
   isPinned?: boolean
   subTasks?: { id: string; text: string; isDone: boolean; timestamp: number }[]
+  /** Base64 data URLs of pasted/dropped images attached to this block. */
+  images?: string[]
 }
 
 export interface NodepadGhostNote {
@@ -96,6 +98,7 @@ export function serialiseProject(project: {
         ...(b.isUnrelated  !== undefined && { isUnrelated:  b.isUnrelated }),
         ...(b.isPinned                   && { isPinned:     b.isPinned }),
         ...(b.subTasks?.length           && { subTasks:     b.subTasks }),
+        ...(b.images?.length             && { images:       b.images }),
       })),
     },
   }

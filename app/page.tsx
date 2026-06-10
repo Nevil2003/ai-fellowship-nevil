@@ -368,7 +368,7 @@ export default function Page() {
     }
   }, [])
 
-  const enrichBlock = useCallback(async (projectId: string, id: string, text: string, category?: string, forcedType?: string) => {
+  const enrichBlock = useCallback(async (projectId: string, id: string, text: string, category?: string, forcedType?: string, images?: string[]) => {
     // Read context directly from the ref — avoids wrapping in setProjects() which
     // React StrictMode double-invokes in development, causing two concurrent
     // enrichment requests and a visible category flicker.
@@ -391,6 +391,7 @@ export default function Page() {
         context.map(({ id, ...rest }) => ({ id, ...rest })),
         forcedType,
         category,
+        images,
       )
 
       // Map indices back to stable block IDs — the context array carries
@@ -560,7 +561,7 @@ export default function Page() {
   }, [isCommandKOpen, isGhostPanelOpen, undo])
 
   const addBlock = useCallback(
-    (text: string, forcedType?: ContentType) => {
+    (text: string, forcedType?: ContentType, images?: string[]) => {
       // Parse inline #type tag  e.g. "#claim The earth is 4.5 billion years old"
       let resolvedText = text
       let resolvedType = forcedType
@@ -606,11 +607,12 @@ export default function Page() {
           timestamp: Date.now(),
           contentType: initialDisplayType,
           isEnriching: true,
+          ...(images?.length ? { images } : {}),
         }]
       }))
 
       setIsCommandKOpen(false)
-      enrichBlock(activeProjectId, newId, resolvedText, undefined, enrichForcedType).catch(console.error)
+      enrichBlock(activeProjectId, newId, resolvedText, undefined, enrichForcedType, images).catch(console.error)
     },
     [activeProjectId, pushHistory, updateActiveProject, enrichBlock]
   )
@@ -978,7 +980,7 @@ export default function Page() {
         </AnimatePresence>
 
         <VimInput
-          onSubmit={addBlock}
+          onSubmit={(text, images) => addBlock(text, undefined, images)}
           onCommand={handleCommand}
           isCommandKOpen={isCommandKOpen}
           setIsCommandKOpen={setIsCommandKOpen}

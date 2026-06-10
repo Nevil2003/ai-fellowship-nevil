@@ -245,8 +245,8 @@ export function getProviderHeaders(config: AIConfig): Record<string, string> {
     "Authorization": `Bearer ${config.apiKey}`,
   }
   if (config.provider === "openrouter") {
-    base["HTTP-Referer"] = "https://nodepad.space"
-    base["X-Title"] = "nodepad"
+    base["HTTP-Referer"] = "https://propstical.com"
+    base["X-Title"] = "Propstical Canvas"
   }
   return base
 }

@@ -1,20 +1,27 @@
 import {
-  Globe,
-  Zap,
+  Package,
+  Receipt,
   HelpCircle,
   CheckSquare,
   Lightbulb,
   Link,
-  Quote,
-  BookOpen,
-  MessageCircle,
-  Sparkles,
-  ScrollText,
-  Scale,
+  MessageSquareQuote,
+  Ruler,
+  Heart,
+  AlertTriangle,
+  Home,
+  GitCompare,
+  Gauge,
   FileText,
   type LucideIcon,
 } from "lucide-react"
 
+// Propstical Canvas — renovation domain remap.
+// Underlying type IDs are inherited from the upstream Nodepad data model
+// (claim / question / task / idea / entity / reference / quote / definition /
+// opinion / reflection / narrative / comparison / thesis / general). We keep
+// the IDs stable so serialisation + export formats stay compatible, but every
+// user-facing label + icon is reframed for home-renovation decisions.
 export type ContentType =
   | "entity"
   | "claim"
@@ -40,69 +47,69 @@ export interface ContentTypeConfig {
 
 export const CONTENT_TYPE_CONFIG: Record<ContentType, ContentTypeConfig> = {
   entity: {
-    label: "Entity",
-    icon: Globe,
+    label: "Material",
+    icon: Package,
     accentVar: "var(--type-entity)",
   },
   claim: {
-    label: "Claim",
-    icon: Zap,
+    label: "Contractor Quote",
+    icon: Receipt,
     accentVar: "var(--type-claim)",
     bodyStyle: "confidence",
   },
   question: {
-    label: "Question",
+    label: "Open Question",
     icon: HelpCircle,
     accentVar: "var(--type-question)",
   },
   task: {
-    label: "Task",
+    label: "To-do",
     icon: CheckSquare,
     accentVar: "var(--type-task)",
     bodyStyle: "checkbox",
   },
   idea: {
-    label: "Idea",
+    label: "Inspiration",
     icon: Lightbulb,
     accentVar: "var(--type-idea)",
   },
   reference: {
-    label: "Reference",
+    label: "Vendor / Link",
     icon: Link,
     accentVar: "var(--type-reference)",
   },
   quote: {
-    label: "Quote",
-    icon: Quote,
+    label: "Expert Note",
+    icon: MessageSquareQuote,
     accentVar: "var(--type-quote)",
     bodyStyle: "blockquote",
   },
   definition: {
-    label: "Definition",
-    icon: BookOpen,
+    label: "Specification",
+    icon: Ruler,
     accentVar: "var(--type-definition)",
     bodyStyle: "blockquote",
   },
   opinion: {
-    label: "Opinion",
-    icon: MessageCircle,
+    label: "Preference",
+    icon: Heart,
     accentVar: "var(--type-opinion)",
     bodyStyle: "italic",
   },
   reflection: {
-    label: "Reflection",
-    icon: Sparkles,
+    label: "Risk / Concern",
+    icon: AlertTriangle,
     accentVar: "var(--type-reflection)",
     bodyStyle: "muted-italic",
   },
   narrative: {
-    label: "Narrative",
-    icon: ScrollText,
+    label: "Room Context",
+    icon: Home,
     accentVar: "var(--type-narrative)",
   },
   comparison: {
-    label: "Comparison",
-    icon: Scale,
+    label: "Option Compare",
+    icon: GitCompare,
     accentVar: "var(--type-comparison)",
   },
   general: {
@@ -111,9 +118,9 @@ export const CONTENT_TYPE_CONFIG: Record<ContentType, ContentTypeConfig> = {
     accentVar: "var(--type-general)",
   },
   thesis: {
-    label: "Thesis",
-    icon: Sparkles,
-    accentVar: "var(--thesis-accent)", // Unique accent for synthesized thesis
+    label: "Decision Score",
+    icon: Gauge,
+    accentVar: "var(--thesis-accent)",
   },
 }
 

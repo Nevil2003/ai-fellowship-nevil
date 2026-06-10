@@ -102,7 +102,7 @@ export function AboutPanel({ open, onClose }: AboutPanelProps) {
         side="right"
         className="w-full sm:max-w-2xl flex flex-col gap-0 p-0 bg-card border-l border-border z-[200] overflow-hidden"
       >
-        <SheetTitle className="sr-only">About nodepad</SheetTitle>
+        <SheetTitle className="sr-only">About Propstical Canvas</SheetTitle>
 
         {/* Header */}
         <div className="flex-shrink-0 px-8 pt-8 pb-6 border-b border-border">
@@ -112,64 +112,44 @@ export function AboutPanel({ open, onClose }: AboutPanelProps) {
               <span className="inline-block h-3 w-3 rounded-sm bg-primary/60" />
               <span className="inline-block h-3 w-3 rounded-sm bg-primary/30" />
             </div>
-            <h1 className="font-mono text-xl font-black text-foreground tracking-tight">nodepad</h1>
+            <h1 className="font-mono text-xl font-black text-foreground tracking-tight">propstical canvas</h1>
           </div>
           <p className="text-base text-muted-foreground leading-relaxed max-w-lg">
-            A spatial research tool that reads what you write and enriches it with AI — no prompting, no chat. Just capture your thinking and let the structure emerge.
+            India&rsquo;s first AI home-decision canvas. Lay out every renovation variable &mdash; materials, quotes, dimensions, budget, inspiration &mdash; and let the AI quietly catch the conflicts, hidden costs, and rework risks before you commit.
           </p>
           <p className="mt-2 text-xs font-mono text-primary/60 uppercase tracking-widest">
-            No chat · No prompts · AI that augments your thinking
+            See it before you spend on it
           </p>
           <p className="mt-3 text-xs text-muted-foreground/50 flex items-center gap-3 flex-wrap">
             <span>
-              A design experiment by{" "}
+              Built on the open-source{" "}
               <a
-                href="http://mskayyali.com"
+                href="https://github.com/mskayyali/nodepad"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground/70 hover:text-foreground underline underline-offset-2 transition-colors"
               >
-                Saleh Kayyali
+                Nodepad
               </a>
+              {" "}spatial engine (MIT)
             </span>
-            <a
-              href="https://github.com/mskayyali/nodepad"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/50 hover:text-foreground border border-white/10 hover:border-white/25 px-2 py-0.5 rounded-sm transition-colors"
-            >
-              Source code ↗
-            </a>
             <CopyEmailButton />
           </p>
           <p className="mt-1.5 text-xs text-muted-foreground/35">
-            This app uses anonymous analytics (Umami) to track feature interactions — views switched, exports, synthesis events. No note content, no personal data, no cross-site tracking.
+            Your notes live in your browser&rsquo;s localStorage. Your API key never passes through a Propstical server &mdash; it goes directly to the AI provider you choose.
           </p>
         </div>
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-8 py-6 space-y-8">
 
-          {/* Intro video */}
-          <Section title="Watch the intro">
-            <div className="relative w-full rounded-sm overflow-hidden border border-border/50" style={{ paddingBottom: "56.25%" }}>
-              <iframe
-                className="absolute inset-0 w-full h-full"
-                src="https://www.youtube-nocookie.com/embed/nCLY7rHAjWE?rel=0&modestbranding=1&color=white"
-                title="nodepad introduction"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </Section>
-
           {/* The idea */}
           <Section title="The idea">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Most AI tools ask you to prompt them. nodepad flips this — you write freely, and the AI quietly reads everything you've captured, classifies it, annotates it, finds contradictions, surfaces connections, and synthesises emerging insights. Your canvas evolves as you think.
+              The average Indian homeowner wastes &#8377;2.1 Lakh on renovation mistakes they could have caught before signing. Contractors upsell. Designers push preferred vendors. Every existing tool &mdash; Livspace, HomeLane, Pinterest &mdash; profits when you commit. Nobody profits from helping you think clearly first.
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              It's designed for researchers, writers, and deep thinkers who want a thinking partner — not a chatbot. The goal is to reduce the friction between a raw thought and a structured insight.
+              Propstical Canvas is the pre-decision tool. You drop in every variable you are juggling &mdash; materials, quotes, room dimensions, budget, inspiration, worries &mdash; and the AI quietly classifies them, maps the conflicts between them, and surfaces the one insight you haven&rsquo;t yet articulated. No chatbot. No salesperson. Just a neutral canvas for your biggest spend of the decade.
             </p>
           </Section>
 
@@ -179,25 +159,25 @@ export function AboutPanel({ open, onClose }: AboutPanelProps) {
               <Step n={1} title="Add your API key">
                 Open the sidebar (☰ top-left) → Settings. The default provider is OpenRouter — create a free account at openrouter.ai and paste your key. You can use <strong className="text-foreground/80">free models</strong> (Nemotron 30B or 120B) with no credits, or add credits to access GPT-4o, Claude Sonnet, Gemini 2.5 Pro, and DeepSeek. OpenAI and Z.ai are also supported as direct providers.
               </Step>
-              <Step n={2} title="Capture anything">
-                Type a thought, paste a quote, drop a URL, or write a question into the input bar at the bottom and press Enter. nodepad classifies it automatically.
+              <Step n={2} title="Drop in every variable">
+                Type a material (<em>&ldquo;Italian marble, ₹350/sqft&rdquo;</em>), a room dimension, a contractor quote, a budget, an inspiration, a worry. Paste a URL for a vendor or product. Press Enter. The AI classifies it for you.
               </Step>
               <Step n={3} title="Watch it enrich">
-                Each node is sent to the AI in context with everything else on your canvas. It comes back with a type, category, annotation, and connections to related nodes.
+                Each note is read in context with everything else already on your canvas. The AI adds a ₹ range, flags hidden costs, catches sequencing issues, and draws a connection line to every related note.
               </Step>
               <Step n={4} title="Force a type with #type">
-                Start your note with a shorthand like <code className="px-1 rounded bg-secondary font-mono text-xs text-primary">#claim</code>, <code className="px-1 rounded bg-secondary font-mono text-xs text-primary">#question</code>, or <code className="px-1 rounded bg-secondary font-mono text-xs text-primary">#idea</code> to override AI classification.
+                Start your note with <code className="px-1 rounded bg-secondary font-mono text-xs text-primary">#entity</code> (material), <code className="px-1 rounded bg-secondary font-mono text-xs text-primary">#claim</code> (contractor quote), <code className="px-1 rounded bg-secondary font-mono text-xs text-primary">#question</code>, <code className="px-1 rounded bg-secondary font-mono text-xs text-primary">#reflection</code> (risk), or <code className="px-1 rounded bg-secondary font-mono text-xs text-primary">#comparison</code> to override AI classification.
               </Step>
-              <Step n={5} title="Watch for synthesis">
-                After a few nodes, nodepad auto-generates a synthesis note — an emergent thesis drawn from everything on the canvas. Find it in the Synthesis panel (top-right sparkle icon).
+              <Step n={5} title="Wait for your Decision Score">
+                After a few notes, Propstical surfaces an emergent insight &mdash; a sharp 18&ndash;28 word read on the biggest risk or gap on your canvas. Solidify it into your brief, or dismiss it and keep thinking.
               </Step>
             </div>
           </Section>
 
           {/* Content types */}
-          <Section title="Content types">
+          <Section title="Note types">
             <p className="text-sm text-muted-foreground mb-3">
-              nodepad recognises 14 types of thinking. Each node is classified into one automatically, and given a colour to match.
+              Propstical recognises 14 kinds of renovation notes &mdash; materials, contractor quotes, specs, risks, open questions, preferences, inspirations and more. Each note is classified automatically and colour-coded so you can scan the canvas at a glance.
             </p>
             <div className="grid grid-cols-2 gap-2">
               {CONTENT_TYPE_HIGHLIGHTS.map((type) => {
@@ -227,21 +207,21 @@ export function AboutPanel({ open, onClose }: AboutPanelProps) {
                 <Layers className="h-4 w-4 flex-shrink-0 text-primary mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-0.5">Tiling <span className="font-mono text-[10px] text-muted-foreground/50 ml-1">{mod}1</span></p>
-                  <p className="text-sm text-muted-foreground">Default. Nodes are laid out in a Binary Space Partition grid — each new node splits the available space. Navigate pages horizontally. A minimap in the bottom-right shows your spatial position.</p>
+                  <p className="text-sm text-muted-foreground">Default. Your renovation notes are laid out in a spatial grid &mdash; each new note splits the available space. Best for seeing the whole project at once.</p>
                 </div>
               </div>
               <div className="flex gap-3 p-3 rounded-sm bg-secondary/30 border border-border/50">
                 <Kanban className="h-4 w-4 flex-shrink-0 text-primary mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-0.5">Kanban <span className="font-mono text-[10px] text-muted-foreground/50 ml-1">{mod}2</span></p>
-                  <p className="text-sm text-muted-foreground">Nodes grouped into columns by content type. Good for reviewing your thinking by category. Tasks always appear first.</p>
+                  <p className="text-sm text-muted-foreground">Notes grouped into columns by type &mdash; materials, quotes, open questions, risks, to-dos. To-dos float to the top so you always see what&rsquo;s pending before you commit.</p>
                 </div>
               </div>
               <div className="flex gap-3 p-3 rounded-sm bg-secondary/30 border border-border/50">
                 <GitFork className="h-4 w-4 flex-shrink-0 text-primary mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-0.5">Graph <span className="font-mono text-[10px] text-muted-foreground/50 ml-1">{mod}3</span></p>
-                  <p className="text-sm text-muted-foreground">An interactive force-directed graph of all your nodes. Connections between them become the focus — highly-connected nodes drift toward the centre, isolated ones settle at the periphery. Click any node to open its full detail panel. Hover to dim unrelated nodes.</p>
+                  <p className="text-sm text-muted-foreground">A force-directed graph of your renovation decisions. Load-bearing choices (the ones connected to many others) drift to the centre &mdash; isolated ones to the edges. Hover any note to dim everything unrelated and see exactly which decisions depend on it.</p>
                 </div>
               </div>
             </div>
@@ -251,11 +231,11 @@ export function AboutPanel({ open, onClose }: AboutPanelProps) {
           <Section title="AI features">
             <div className="space-y-3">
               {[
-                { icon: Brain, title: "Auto-classification", desc: "Every node is classified into one of 14 content types based on its meaning, not just its keywords." },
-                { icon: Zap, title: "Contextual annotation", desc: "The AI reads your whole canvas and writes a 2–4 sentence annotation for each node that explains it in the context of everything else." },
-                { icon: Search, title: "Connection mapping", desc: "Hover the dot indicator on any tile header to dim unrelated nodes and reveal which nodes are semantically connected. In Graph view, the same connections drive the layout — connected nodes pull toward each other." },
-                { icon: Globe, title: "Web grounding", desc: "Enable web grounding in settings to have claims, questions, and references verified against live sources. Citations appear inline." },
-                { icon: Sparkles, title: "Synthesis", desc: "After ≥3 nodes, nodepad quietly generates an emergent thesis — a 15–25 word synthesis of what you're actually thinking about. Solidify it to keep it, or dismiss." },
+                { icon: Brain, title: "Auto-classification", desc: "Every note is classified as a material, contractor quote, spec, question, risk, preference, or one of 8 other renovation types — based on meaning, not just keywords." },
+                { icon: Zap, title: "Hidden-cost annotation", desc: "The AI reads your whole canvas and adds a 2–4 sentence annotation to each note: realistic ₹ ranges for Indian tier-1 cities, commonly excluded items (waterproofing, GST, labour), and climate/maintenance fit." },
+                { icon: Search, title: "Conflict detection", desc: "Hover any note to see which other notes depend on it. In Graph view, connections become the layout — load-bearing decisions pull to the centre, isolated ones drift to the edge." },
+                { icon: Globe, title: "Web grounding", desc: "Turn on web grounding in settings to let the AI cite real sources for contractor quotes, material specs, and vendor claims." },
+                { icon: Sparkles, title: "Decision Score", desc: "Once you have a few notes, Propstical surfaces the single most important pre-commitment insight: a budget gap, a rework risk, a resale concern, or a quote exclusion you missed. Solidify it into your brief or dismiss." },
               ].map(({ icon: Icon, title, desc }) => (
                 <div key={title} className="flex gap-3">
                   <Icon className="h-4 w-4 flex-shrink-0 text-primary/70 mt-0.5" />
@@ -274,22 +254,22 @@ export function AboutPanel({ open, onClose }: AboutPanelProps) {
               <div className="flex gap-3">
                 <FolderDown className="h-4 w-4 flex-shrink-0 text-primary/70 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-foreground mb-0.5">Export .nodepad</p>
-                  <p className="text-sm text-muted-foreground">Save your full research space as a <code className="px-1 rounded bg-secondary font-mono text-xs">.nodepad</code> file. Import it on any device to pick up where you left off.</p>
+                  <p className="text-sm font-semibold text-foreground mb-0.5">Export project file</p>
+                  <p className="text-sm text-muted-foreground">Save your full renovation canvas as a <code className="px-1 rounded bg-secondary font-mono text-xs">.nodepad</code> file (shared format with the upstream open-source engine). Import on any device to pick up where you left off.</p>
                 </div>
               </div>
               <div className="flex gap-3">
                 <Download className="h-4 w-4 flex-shrink-0 text-primary/70 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-foreground mb-0.5">Export Markdown</p>
-                  <p className="text-sm text-muted-foreground">Export a richly formatted Markdown document with YAML front matter, a table of contents, grouped sections, confidence tables for claims, and cited sources.</p>
+                  <p className="text-sm font-semibold text-foreground mb-0.5">Contractor-ready Markdown brief</p>
+                  <p className="text-sm text-muted-foreground">Export a formatted Markdown brief with every specified material, committed decision, budget range, and open question. Ready to hand to a contractor or designer for a quote &mdash; your canvas is your scope of work.</p>
                 </div>
               </div>
               <div className="flex gap-3">
                 <FolderInput className="h-4 w-4 flex-shrink-0 text-primary/70 mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-0.5">Your data, locally</p>
-                  <p className="text-sm text-muted-foreground">Everything is stored in your browser's localStorage — no account, no cloud sync. Notes are sent to the AI provider of your choice (OpenRouter, OpenAI, or Z.ai) using your own API key. Nothing is stored server-side.</p>
+                  <p className="text-sm text-muted-foreground">Everything is stored in your browser&rsquo;s localStorage &mdash; no account, no cloud sync, no Propstical server. Notes are sent directly to the AI provider of your choice (OpenRouter, OpenAI, or Z.ai) using your own API key.</p>
                 </div>
               </div>
             </div>
@@ -311,13 +291,13 @@ export function AboutPanel({ open, onClose }: AboutPanelProps) {
           <Section title="Tips">
             <ul className="space-y-2">
               {[
-                "Write in fragments — nodepad handles the structure. You don't need to write in full sentences.",
-                "Mix types freely. A canvas with claims, questions, and quotes is richer than one with only one type.",
-                "Switch to Graph view (via ⌘K → Graph) to understand which nodes are central to your thinking and which are peripheral.",
-                "The canvas index (⌘K → Index) groups nodes by category — hovering a title in the index highlights the matching node in any view.",
-                "Pin important nodes with the pin icon in Tiling view so they stand out visually.",
-                "Tasks added to the canvas become a sub-task list — add sub-tasks by nesting them in the tile.",
-                "Use multiple projects (sidebar) to keep separate research threads isolated.",
+                "Write in fragments. \"Italian marble ₹350/sqft master bath\" is enough — Propstical fills in the structure.",
+                "Mix types freely. The canvas gets sharper as you add materials, worries, and questions side-by-side.",
+                "Add your budget as an early note. Every material you add will be cross-checked against it.",
+                "Switch to Graph view (⌘K → Graph) to see which decisions are load-bearing — change one, and you'll see how many others move with it.",
+                "Use the #reflection type to log worries (\"what if the tile doesn't arrive before possession?\") — the AI will treat them as risks and factor them into the Decision Score.",
+                "One canvas per room or project. A 2BHK renovation is not one canvas — it's a bathroom, a kitchen, and a living room canvas.",
+                "When you're ready to talk to a contractor, export Markdown. Your canvas becomes a scope-of-work brief — vendors can't hide exclusions from a detailed brief.",
               ].map((tip, i) => (
                 <li key={i} className="flex gap-2.5 text-sm text-muted-foreground">
                   <span className="flex-shrink-0 font-mono text-[10px] text-primary/50 mt-0.5 pt-px">→</span>
@@ -333,7 +313,7 @@ export function AboutPanel({ open, onClose }: AboutPanelProps) {
               <span className="inline-block h-1.5 w-1.5 rounded-sm bg-primary" />
               <span className="inline-block h-1.5 w-1.5 rounded-sm bg-primary/60" />
               <span className="inline-block h-1.5 w-1.5 rounded-sm bg-primary/30" />
-              <span className="font-mono text-[10px] font-bold text-muted-foreground/40 ml-1">nodepad</span>
+              <span className="font-mono text-[10px] font-bold text-muted-foreground/40 ml-1">propstical canvas</span>
             </div>
           </div>
 
