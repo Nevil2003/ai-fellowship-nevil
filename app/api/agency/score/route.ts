@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { callAIJSON } from "@/lib/agency-ai"
+import { callAIJSON } from "@/lib/ai-unified"
+import { protectRoute } from "@/lib/api-middleware"
 
 const SCORE_SYSTEM = `You are a neuromarketing content analyst trained on Meta TRIBE v2 research, attention science, and persuasion psychology. Analyze content for neural engagement potential.
 
@@ -40,6 +41,10 @@ Scoring guide:
 Be accurate. Do not inflate scores. A generic piece of copy should score 45-60. Only exceptional content scores 90+.`
 
 export async function POST(req: NextRequest) {
+  // Auth check
+  const authError = await protectRoute(req)
+  if (authError) return authError
+
   try {
     const { content } = await req.json()
 

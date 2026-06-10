@@ -1,13 +1,11 @@
 /**
- * Server-side AI brain for the WhatsApp bot.
- * Uses the same domain prompts as the web canvas but returns
- * short, WhatsApp-shaped replies instead of full annotations.
- *
- * Env vars:
- *   AI_PROVIDER     — "openrouter" | "openai"  (default: openrouter)
- *   AI_API_KEY      — the key
- *   AI_MODEL        — e.g. "anthropic/claude-sonnet-4-5"
+ * Server-side AI brain for the WhatsApp/Telegram bot.
+ * Uses the unified AI client (OpenRouter → Gemini fallback).
+ * Returns short, chat-shaped replies.
  */
+
+import { callAIStream } from "./ai-unified"
+import type { ChatMessage } from "./ai-unified"
 
 const SYSTEM_PROMPT = `You are Propstical — a neutral WhatsApp renovation advisor for Indian homeowners in tier-1 cities.
 
@@ -69,56 +67,70 @@ export interface BotMessage {
 }
 
 export async function askBrain(history: BotMessage[]): Promise<string> {
-  const provider = (process.env.AI_PROVIDER ?? "openrouter").toLowerCase()
-  const apiKey = process.env.AI_API_KEY
-  const model = process.env.AI_MODEL ?? "anthropic/claude-sonnet-4-5"
-  if (!apiKey) throw new Error("Missing AI_API_KEY")
-
-  const baseUrl =
-    provider === "openai" ? "https://api.openai.com/v1" :
-    provider === "gemini" ? "https://generativelanguage.googleapis.com/v1beta/openai" :
-    "https://openrouter.ai/api/v1"
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${apiKey}`,
-  }
-  if (provider === "openrouter") {
-    headers["HTTP-Referer"] = "https://propstical.com"
-    headers["X-Title"] = "Propstical WhatsApp Bot"
-  }
-
-  const messages = [
+  const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
     ...history.map(m => ({
       role: m.role,
       content: m.images?.length
         ? [
-            { type: "text", text: m.text || "[photo attached]" },
-            ...m.images.map(url => ({ type: "image_url", image_url: { url } })),
+            { type: "text" as const, text: m.text || "[photo attached]" },
+            ...m.images.map(url => ({
+              type: "image_url" as const,
+              image_url: { url }
+            })),
           ]
         : m.text,
     })),
   ]
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model,
-      max_tokens: 600,
-      temperature: 0.2,
+  try {
+    const res = await callAIStream({
       messages,
-    }),
-  })
+      maxTokens: 600,
+      temperature: 0.2,
+    })
 
-  if (!res.ok) {
-    const err = await res.text()
-    console.error("askBrain failed:", res.status, err)
+    if (!res.ok) {
+      console.error("askBrain failed:", res.status)
+      return "Sorry, my brain is offline right now. Try again in a moment 🙏"
+    }
+
+    // Parse SSE stream
+    const reader = res.body?.getReader()
+    if (!reader) return "Hmm, no response. Can you try again?"
+
+    let fullText = ""
+    const decoder = new TextDecoder()
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split("\n")
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6)
+            if (data === "[DONE]") continue
+            try {
+              const parsed = JSON.parse(data)
+              const content = parsed.choices?.[0]?.delta?.content
+              if (content) fullText += content
+            } catch {
+              // Skip malformed JSON
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock()
+    }
+
+    return fullText.trim() || "Hmm, I didn't catch that. Can you rephrase?"
+  } catch (err) {
+    console.error("askBrain error:", err)
     return "Sorry, my brain is offline right now. Try again in a moment 🙏"
   }
-
-  const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> }
-  return data.choices?.[0]?.message?.content?.trim()
-    ?? "Hmm, I didn't catch that. Can you rephrase?"
 }

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
-import { callAIStream } from "@/lib/agency-ai"
+import { callAIStream } from "@/lib/ai-unified"
+import { protectRoute } from "@/lib/api-middleware"
 
 type ContentType = "social" | "ads" | "blog" | "email" | "video"
 
@@ -78,6 +79,10 @@ Also write the caption + hashtags to post with the video.`,
 }
 
 export async function POST(req: NextRequest) {
+  // Auth check
+  const authError = await protectRoute(req)
+  if (authError) return authError
+
   try {
     const { type, brand, audience, message, tone } = await req.json()
 

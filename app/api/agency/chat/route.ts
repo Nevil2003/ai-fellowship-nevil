@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
-import { callAIStream } from "@/lib/agency-ai"
+import { callAIStream } from "@/lib/ai-unified"
+import { protectRoute, getAuthUser } from "@/lib/api-middleware"
 
 const SYSTEM_PROMPT = `You are Mastical Strategic AI — a senior agency consultant with 15+ years of experience scaling brands across DTC, SaaS, B2B, and consumer categories. You work inside Mastical Agency OS.
 
@@ -28,6 +29,10 @@ You are NOT a general assistant. Stay focused on agency, marketing, brand, and g
 CRITICAL OUTPUT RULE: Never write your thinking process, planning steps, or internal reasoning. Start your response directly with the answer. No preamble like "I need to think about..." or "Let me consider...".`
 
 export async function POST(req: NextRequest) {
+  // Auth check
+  const authError = await protectRoute(req)
+  if (authError) return authError
+
   try {
     const { messages } = await req.json()
 
