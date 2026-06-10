@@ -24,6 +24,7 @@ export interface TextBlock {
   isUnrelated?: boolean
   isPinned?: boolean
   subTasks?: { id: string; text: string; isDone: boolean; timestamp: number }[]
+  images?: string[]
 }
 
 interface TileCardProps {
@@ -567,7 +568,21 @@ export const TileCard = memo(function TileCard({
                           ))}
                         </div>
                       ) : (
-                        renderBody(block.text, config.bodyStyle, accent)
+                        <>
+                          {renderBody(block.text, config.bodyStyle, accent)}
+                          {block.images && block.images.length > 0 && (
+                            <div className={`mt-2 grid gap-1.5 ${block.images.length === 1 ? '' : 'grid-cols-2'}`}>
+                              {block.images.map((src, i) => (
+                                <img
+                                  key={i}
+                                  src={src}
+                                  alt={`attachment ${i + 1}`}
+                                  className="w-full rounded-md border border-border/30 object-cover max-h-48"
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

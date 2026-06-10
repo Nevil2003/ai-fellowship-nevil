@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   Trello, Grid, Trash2, Clipboard, Download,
   FolderOpen, FolderPlus, BookOpen, Sparkles,
-  FolderDown, FolderInput, GitFork
+  FolderDown, FolderInput, GitFork, X, ImageIcon
 } from "lucide-react"
 import { Command } from "cmdk"
 import { useModKey } from "@/lib/utils"
@@ -21,10 +21,38 @@ const ACTION_ITEMS = [
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 interface VimInputProps {
-  onSubmit: (text: string) => void
+  onSubmit: (text: string, images?: string[]) => void
   onCommand: (cmd: string, text?: string) => void
   isCommandKOpen: boolean
   setIsCommandKOpen: (open: boolean) => void
+}
+
+// Max per-image size after downscale (~1600px longest edge, ~1MB base64)
+const MAX_IMAGE_DIM = 1600
+
+function fileToCompressedDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(reader.error)
+    reader.onload = () => {
+      const img = new Image()
+      img.onerror = () => reject(new Error("image decode failed"))
+      img.onload = () => {
+        const scale = Math.min(1, MAX_IMAGE_DIM / Math.max(img.width, img.height))
+        const w = Math.round(img.width * scale)
+        const h = Math.round(img.height * scale)
+        const canvas = document.createElement("canvas")
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext("2d")
+        if (!ctx) return reject(new Error("canvas unavailable"))
+        ctx.drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL("image/jpeg", 0.82))
+      }
+      img.src = reader.result as string
+    }
+    reader.readAsDataURL(file)
+  })
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -33,7 +61,35 @@ export function VimInput({ onSubmit, onCommand, isCommandKOpen, setIsCommandKOpe
   const [value, setValue] = React.useState("")
   const [search, setSearch] = React.useState("")
   const [focusedIdx, setFocusedIdx] = React.useState(0)
+  const [images, setImages] = React.useState<string[]>([])
+  const [isDragging, setIsDragging] = React.useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
   const mod = useModKey()
+
+  const addImageFiles = React.useCallback(async (files: File[]) => {
+    const imgs = files.filter(f => f.type.startsWith("image/"))
+    if (!imgs.length) return
+    const encoded = await Promise.all(imgs.map(fileToCompressedDataUrl).map(p => p.catch(() => null)))
+    const good = encoded.filter((s): s is string => !!s)
+    if (good.length) setImages(prev => [...prev, ...good].slice(0, 4))
+  }, [])
+
+  const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData?.files ?? [])
+    if (items.length) {
+      e.preventDefault()
+      addImageFiles(items)
+    }
+  }, [addImageFiles])
+
+  const submit = React.useCallback(() => {
+    const text = value.trim()
+    if (!text && images.length === 0) return
+    onSubmit(text, images.length ? images : undefined)
+    setValue("")
+    setImages([])
+    setIsCommandKOpen(false)
+  }, [value, images, onSubmit, setIsCommandKOpen])
 
   const mainInputRef = React.useRef<HTMLInputElement>(null)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
@@ -191,9 +247,8 @@ export function VimInput({ onSubmit, onCommand, isCommandKOpen, setIsCommandKOpe
       <Command
         className="w-full"
         onKeyDown={(e) => {
-          if (e.key === "Enter" && value.trim() && !isCommandKOpen) {
-            onSubmit(value.trim())
-            setValue("")
+          if (e.key === "Enter" && !isCommandKOpen && (value.trim() || images.length)) {
+            submit()
           }
           if (e.key === "Escape") setIsCommandKOpen(false)
         }}
@@ -341,9 +396,39 @@ export function VimInput({ onSubmit, onCommand, isCommandKOpen, setIsCommandKOpe
         </AnimatePresence>
 
         {/* ── Main Input Bar ─────────────────────────────────────────────── */}
-        <div className="w-full border-t border-white/20 bg-black/80 backdrop-blur-3xl px-6 py-5 flex items-center gap-4 transition-all duration-300 focus-within:border-primary/40 relative">
+        <div
+          className={`w-full border-t bg-black/80 backdrop-blur-3xl px-6 py-5 flex flex-col gap-2 transition-all duration-300 focus-within:border-primary/40 relative ${isDragging ? 'border-primary/60 bg-primary/5' : 'border-white/20'}`}
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setIsDragging(false)
+            const files = Array.from(e.dataTransfer.files)
+            if (files.length) addImageFiles(files)
+          }}
+        >
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
 
+          {images.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {images.map((src, i) => (
+                <div key={i} className="relative group">
+                  <img src={src} alt="" className="h-12 w-12 rounded object-cover border border-white/20" />
+                  <button
+                    onClick={() => setImages(prev => prev.filter((_, j) => j !== i))}
+                    className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-black border border-white/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-2.5 w-2.5 text-white/80" />
+                  </button>
+                </div>
+              ))}
+              <span className="font-mono text-[9px] uppercase tracking-widest text-white/40">
+                {images.length}/4 · paste, drop or click 📎
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 flex-1">
             <div className="font-mono text-[10px] font-bold text-white/60 uppercase tracking-[0.2em] select-none">
               Entry
@@ -352,7 +437,8 @@ export function VimInput({ onSubmit, onCommand, isCommandKOpen, setIsCommandKOpe
               ref={mainInputRef}
               value={value}
               onValueChange={setValue}
-              placeholder="Capture something..."
+              onPaste={handlePaste}
+              placeholder={isDragging ? "Drop image to attach…" : "Capture something..."}
               className="flex-1 bg-transparent font-mono text-sm tracking-tight text-white outline-none placeholder:text-white/55"
               autoFocus
             />
@@ -380,18 +466,36 @@ export function VimInput({ onSubmit, onCommand, isCommandKOpen, setIsCommandKOpe
             <div className="h-4 w-px bg-white/20" />
 
             <button
-              onClick={() => {
-                if (value.trim()) {
-                  onSubmit(value.trim())
-                  setValue("")
-                  setIsCommandKOpen(false)
-                }
+              onClick={() => fileInputRef.current?.click()}
+              className="font-mono text-[10px] font-bold text-white/55 uppercase tracking-widest hover:text-white/80 transition-all flex items-center gap-1"
+              title="Attach image"
+            >
+              <ImageIcon className="h-3 w-3" />
+              Image
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? [])
+                if (files.length) addImageFiles(files)
+                e.target.value = ""
               }}
+            />
+
+            <div className="h-4 w-px bg-white/20" />
+
+            <button
+              onClick={submit}
               className="font-mono text-[10px] font-bold text-primary uppercase tracking-widest hover:brightness-125 transition-all active:scale-95 disabled:opacity-20"
-              disabled={!value.trim()}
+              disabled={!value.trim() && images.length === 0}
             >
               Submit
             </button>
+          </div>
           </div>
         </div>
       </Command>

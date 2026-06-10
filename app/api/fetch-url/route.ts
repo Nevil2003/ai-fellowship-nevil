@@ -45,7 +45,7 @@ async function fetchUrlMeta(url: string): Promise<UrlMeta | null> {
       res = await fetch(url, {
         signal: controller.signal,
         headers: {
-          "User-Agent": "nodepad/1.0 (+https://nodepad.space)",
+          "User-Agent": "propstical-canvas/0.1 (+https://propstical.com)",
           "Accept": "text/html,application/xhtml+xml",
         },
         redirect: "follow",

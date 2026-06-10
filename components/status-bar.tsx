@@ -93,8 +93,15 @@ export function StatusBar({
             <span className="inline-block h-2 w-2 rounded-sm bg-primary/30" />
           </div>
           <h1 className="font-mono text-xs font-bold text-foreground tracking-tight select-none">
-            nodepad
+            propstical
           </h1>
+          <a
+            href="/funding-agent"
+            className="ml-2 font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50 hover:text-primary border border-white/5 hover:border-primary/30 px-1.5 py-0.5 rounded-sm transition-all"
+            title="Funding Agent — apply to YC, EF, Thiel & more"
+          >
+            funding ✦
+          </a>
           {activeProjectName && (
             <div className="flex items-center gap-2 ml-1">
               <span className="text-muted-foreground/20 font-mono text-[10px]">/</span>
@@ -201,7 +208,7 @@ export function StatusBar({
                 onHelpTooltipDismiss?.()
               }}
               className="p-1.5 rounded-sm transition-all duration-200 hover:bg-secondary text-muted-foreground/40 hover:text-foreground"
-              title="About nodepad"
+              title="About Propstical"
             >
               <span className="font-mono text-[11px] font-black leading-none">?</span>
             </button>
