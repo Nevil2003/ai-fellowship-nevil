@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Plus,
@@ -182,6 +182,46 @@ export default function WorkspacePage() {
   const [showNotifs, setShowNotifs] = useState(false)
   const [newCardStage, setNewCardStage] = useState<Stage | null>(null)
   const [newCardTitle, setNewCardTitle] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Fetch workspace campaigns from API
+  useEffect(() => {
+    const fetchWorkspace = async () => {
+      try {
+        const res = await fetch("/api/agency/workspace?workspace_id=default")
+        if (res.ok) {
+          const data = await res.json()
+          if (data.data?.campaigns && Array.isArray(data.data.campaigns)) {
+            // Map API campaigns to card format (with fallback to INITIAL_CARDS if empty)
+            const apiCards = data.data.campaigns.map((campaign: any) => ({
+              id: campaign.id || Math.random().toString(36).substr(2, 9),
+              title: campaign.name,
+              brand: campaign.target_audience || "New Campaign",
+              type: (campaign.channels?.[0]?.includes("instagram") ? "Social" :
+                     campaign.channels?.[0]?.includes("email") ? "Email" :
+                     campaign.channels?.[0]?.includes("ad") ? "Ad" : "Social") as Card["type"],
+              stage: (campaign.status === "active" ? "In Production" :
+                      campaign.status === "completed" ? "Live" : "Discovery") as Stage,
+              assignees: ["M"],
+              due: campaign.end_date ? new Date(campaign.end_date).toLocaleDateString() : "TBD",
+              priority: campaign.budget && campaign.budget > 5000 ? "high" : "medium" as const,
+              tags: campaign.channels || [],
+            }))
+            if (apiCards.length > 0) {
+              setCards(apiCards)
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch workspace:", err)
+        // Fallback to INITIAL_CARDS
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchWorkspace()
+  }, [])
 
   const handleDrop = (stage: Stage) => {
     if (!dragCard) return
@@ -190,20 +230,54 @@ export default function WorkspacePage() {
     setDragOverStage(null)
   }
 
-  const addCard = (stage: Stage) => {
+  const addCard = async (stage: Stage) => {
     if (!newCardTitle.trim()) return
-    const card: Card = {
-      id: Date.now().toString(),
-      title: newCardTitle,
-      brand: "New Brand",
-      type: "Social",
-      stage,
-      assignees: ["J"],
-      due: "TBD",
-      priority: "medium",
-      tags: [],
+
+    try {
+      // Create campaign via API
+      const res = await fetch("/api/agency/workspace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: "default",
+          name: newCardTitle,
+          status: stage === "Discovery" ? "draft" : "active",
+          target_audience: "New Audience",
+        }),
+      })
+
+      if (res.ok) {
+        const apiCampaign = await res.json()
+        const card: Card = {
+          id: apiCampaign.data?.id || Date.now().toString(),
+          title: newCardTitle,
+          brand: "New Brand",
+          type: "Social",
+          stage,
+          assignees: ["J"],
+          due: "TBD",
+          priority: "medium",
+          tags: [],
+        }
+        setCards((prev) => [...prev, card])
+      }
+    } catch (err) {
+      console.error("Failed to create campaign:", err)
+      // Fallback: still add to local state
+      const card: Card = {
+        id: Date.now().toString(),
+        title: newCardTitle,
+        brand: "New Brand",
+        type: "Social",
+        stage,
+        assignees: ["J"],
+        due: "TBD",
+        priority: "medium",
+        tags: [],
+      }
+      setCards((prev) => [...prev, card])
     }
-    setCards((prev) => [...prev, card])
+
     setNewCardTitle("")
     setNewCardStage(null)
   }

@@ -233,9 +233,50 @@ export default function NeuralPage() {
     if (!content.trim()) return
     setIsAnalyzing(true)
     setResult(null)
-    await new Promise((r) => setTimeout(r, 2200 + Math.random() * 800))
-    setResult(scoreContent(content))
-    setIsAnalyzing(false)
+
+    try {
+      const res = await fetch("/api/agency/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      })
+
+      if (res.ok) {
+        const apiResult = await res.json()
+        // Map API response to ScoreResult format
+        if (apiResult.data) {
+          const mapped: ScoreResult = {
+            overall: apiResult.data.overall || 75,
+            dimensions: apiResult.data.dimensions || {
+              emotionalResonance: 75,
+              visualAttention: 72,
+              cognitiveLoad: 80,
+              memorability: 68,
+              intentAlignment: 76,
+              urgency: 70,
+            },
+            recommendations: apiResult.data.recommendations?.map((r: any) => r.action) || [],
+            heatmapZones: [
+              { label: "Hook", intensity: "high", x: 20, y: 15 },
+              { label: "Social Proof", intensity: "high", x: 70, y: 60 },
+              { label: "CTA", intensity: "medium", x: 50, y: 88 },
+              { label: "Body", intensity: "low", x: 40, y: 45 },
+            ],
+            verdict: apiResult.data.label?.toLowerCase() as any || "average",
+          }
+          setResult(mapped)
+        }
+      } else {
+        // Fallback to local scoring
+        setResult(scoreContent(content))
+      }
+    } catch (err) {
+      console.warn("API score failed, using fallback:", err)
+      // Fallback to local scoring
+      setResult(scoreContent(content))
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   const radarData = result
