@@ -1,4 +1,4 @@
-import { AgencySidebar } from "@/components/agency/sidebar"
+import { AgencyShell } from "@/components/agency/shell"
 
 export const metadata = {
   title: "Mastical Agency OS — AI-Powered Content Operations Platform",
@@ -7,10 +7,5 @@ export const metadata = {
 }
 
 export default function AgencyLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex h-screen overflow-hidden bg-[#09090f]">
-      <AgencySidebar />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
-    </div>
-  )
+  return <AgencyShell>{children}</AgencyShell>
 }

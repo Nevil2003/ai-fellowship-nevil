@@ -20,6 +20,7 @@ import {
   Download,
   Copy,
 } from "lucide-react"
+import { logActivity } from "@/lib/local-stats"
 import {
   Radar,
   RadarChart,
@@ -243,28 +244,47 @@ export default function NeuralPage() {
 
       if (res.ok) {
         const apiResult = await res.json()
-        // Map API response to ScoreResult format
-        if (apiResult.data) {
+        // The API returns the score JSON directly (no wrapper); also
+        // support a { data: ... } wrapper for forward compatibility.
+        const d = apiResult?.data ?? apiResult
+        if (d && typeof d.overall === "number") {
+          const dims = d.dimensions || {}
+          // API uses "urgencySignal"; the UI uses "urgency"
+          const verdictMap: Record<string, ScoreResult["verdict"]> = {
+            excellent: "excellent",
+            strong: "strong",
+            good: "average",
+            fair: "average",
+            average: "average",
+            weak: "weak",
+          }
           const mapped: ScoreResult = {
-            overall: apiResult.data.overall || 75,
-            dimensions: apiResult.data.dimensions || {
-              emotionalResonance: 75,
-              visualAttention: 72,
-              cognitiveLoad: 80,
-              memorability: 68,
-              intentAlignment: 76,
-              urgency: 70,
+            overall: d.overall,
+            dimensions: {
+              emotionalResonance: dims.emotionalResonance ?? 70,
+              visualAttention: dims.visualAttention ?? 70,
+              cognitiveLoad: dims.cognitiveLoad ?? 70,
+              memorability: dims.memorability ?? 70,
+              intentAlignment: dims.intentAlignment ?? 70,
+              urgency: dims.urgency ?? dims.urgencySignal ?? 70,
             },
-            recommendations: apiResult.data.recommendations?.map((r: any) => r.action) || [],
+            recommendations:
+              d.recommendations?.map((r: any) => (typeof r === "string" ? r : r.action)).filter(Boolean) || [],
             heatmapZones: [
-              { label: "Hook", intensity: "high", x: 20, y: 15 },
-              { label: "Social Proof", intensity: "high", x: 70, y: 60 },
-              { label: "CTA", intensity: "medium", x: 50, y: 88 },
-              { label: "Body", intensity: "low", x: 40, y: 45 },
+              { label: "Hook", intensity: d.heatmap?.opening ?? "high", x: 20, y: 15 },
+              { label: "Body", intensity: d.heatmap?.middle ?? "medium", x: 40, y: 45 },
+              { label: "CTA", intensity: d.heatmap?.closing ?? "medium", x: 50, y: 88 },
             ],
-            verdict: apiResult.data.label?.toLowerCase() as any || "average",
+            verdict: verdictMap[String(d.label || "").toLowerCase()] || "average",
           }
           setResult(mapped)
+          logActivity({
+            kind: "score",
+            message: `Content scored ${mapped.overall}% neural engagement`,
+            score: mapped.overall,
+          })
+        } else {
+          setResult(scoreContent(content))
         }
       } else {
         // Fallback to local scoring
@@ -293,7 +313,7 @@ export default function NeuralPage() {
   return (
     <div className="min-h-full bg-[#09090f]">
       {/* Header */}
-      <div className="px-8 py-6 border-b border-white/[0.06] bg-[#0a0a14]">
+      <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-6 border-b border-white/[0.06] bg-[#0a0a14]">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-black text-white flex items-center gap-2">
@@ -505,7 +525,7 @@ export default function NeuralPage() {
             {result && !isAnalyzing && (
               <motion.div key="result" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
                 {/* Overall score */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div
                     className="col-span-1 rounded-2xl border bg-[#0f0f1a] p-6 flex flex-col items-center justify-center"
                     style={{
@@ -524,7 +544,7 @@ export default function NeuralPage() {
                   </div>
 
                   {/* Radar chart */}
-                  <div className="col-span-2 rounded-2xl border border-white/[0.06] bg-[#0f0f1a] p-5">
+                  <div className="lg:col-span-2 rounded-2xl border border-white/[0.06] bg-[#0f0f1a] p-5">
                     <p className="text-[10px] text-white/30 uppercase tracking-widest font-semibold mb-3">
                       Neural Dimension Analysis
                     </p>
@@ -551,7 +571,7 @@ export default function NeuralPage() {
                 </div>
 
                 {/* Dimension scores */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {Object.entries(result.dimensions).map(([key, value]) => {
                     const Icon = dimensionIcons[key]
                     const color = value >= 80 ? "text-emerald-400" : value >= 65 ? "text-blue-400" : "text-amber-400"

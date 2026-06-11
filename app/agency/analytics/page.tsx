@@ -278,7 +278,7 @@ export default function AnalyticsPage() {
       <div className="flex-1 overflow-y-auto px-6 py-6">
         <div className="space-y-6 max-w-7xl">
           {/* KPI Cards */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               label="Total Reach"
               value={totalReach.toLocaleString()}
@@ -298,7 +298,7 @@ export default function AnalyticsPage() {
           {/* Platform Cards */}
           <div>
             <h2 className="text-sm font-bold text-white mb-4">Platform Performance</h2>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {data.platforms.map((platform) => (
                 <PlatformCard key={platform.platform} stats={platform} />
               ))}
@@ -306,7 +306,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Charts */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Timeline Chart */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}

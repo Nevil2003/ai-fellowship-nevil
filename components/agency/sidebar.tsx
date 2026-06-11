@@ -16,6 +16,7 @@ import {
   Share2,
   ShieldCheck,
   Film,
+  BarChart2,
 } from "lucide-react"
 
 const navGroups = [
@@ -27,6 +28,7 @@ const navGroups = [
       { href: "/agency/workspace", label: "Workspace", icon: Kanban, exact: false },
       { href: "/agency/studio", label: "Content Studio", icon: Sparkles, exact: false },
       { href: "/agency/neural", label: "Neural Score", icon: Brain, exact: false },
+      { href: "/agency/analytics", label: "Analytics", icon: BarChart2, exact: false },
     ],
   },
   {
@@ -111,8 +113,12 @@ export function AgencySidebar() {
           <div className="text-[9px] font-semibold text-white/20 uppercase tracking-[0.18em] px-3 mb-2">
             Account
           </div>
-          <Link href="/agency">
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-all cursor-pointer">
+          <Link href="/agency/settings">
+            <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer ${
+              pathname.startsWith("/agency/settings")
+                ? "bg-violet-600/15 text-violet-300 border border-violet-500/25"
+                : "text-white/40 hover:text-white/70 hover:bg-white/[0.04] border border-transparent"
+            }`}>
               <Settings className="w-4 h-4" />
               Settings
             </div>

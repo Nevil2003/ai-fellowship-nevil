@@ -2,6 +2,9 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import { logActivity } from "@/lib/local-stats"
 import {
   Send,
   Sparkles,
@@ -58,6 +61,8 @@ function TypingDots() {
 
 function MessageBubble({ msg }: { msg: Message }) {
   const [copied, setCopied] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
   const isUser = msg.role === "user"
 
   const copy = () => {
@@ -65,8 +70,6 @@ function MessageBubble({ msg }: { msg: Message }) {
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
-
-  const lines = msg.content.split("\n")
 
   return (
     <motion.div
@@ -93,39 +96,17 @@ function MessageBubble({ msg }: { msg: Message }) {
               : "bg-[#13131e] border border-white/[0.07] text-white/80"
           } ${isUser ? "rounded-tr-sm" : "rounded-tl-sm"}`}
         >
-          {lines.map((line, i) => {
-            if (line.startsWith("**") && line.endsWith("**")) {
-              return (
-                <p key={i} className="font-bold text-white mt-3 mb-1 first:mt-0">
-                  {line.replace(/\*\*/g, "")}
-                </p>
-              )
-            }
-            if (line.startsWith("- ") || line.startsWith("→ ")) {
-              return (
-                <p key={i} className="text-white/70 pl-2">
-                  {line}
-                </p>
-              )
-            }
-            if (line.startsWith("|")) {
-              return (
-                <p key={i} className="font-mono text-xs text-violet-300/70">
-                  {line}
-                </p>
-              )
-            }
-            if (line === "") return <div key={i} className="h-1.5" />
-            return (
-              <p key={i} className="text-white/75">
-                {line.replace(/\*\*([^*]+)\*\*/g, "$1")}
-              </p>
-            )
-          })}
+          {isUser ? (
+            <p className="whitespace-pre-wrap">{msg.content}</p>
+          ) : (
+            <div className="prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-p:text-white/75 prose-strong:text-white prose-headings:text-white prose-headings:mt-3 prose-headings:mb-1.5 prose-li:my-0.5 prose-li:text-white/70 prose-table:text-xs prose-th:text-violet-300 prose-td:text-white/70 prose-code:text-violet-300 prose-a:text-violet-400">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+            </div>
+          )}
         </div>
         <div className={`flex items-center gap-2 mt-1.5 px-1 ${isUser ? "flex-row-reverse" : ""}`}>
-          <span className="text-[10px] text-white/20">
-            {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          <span className="text-[10px] text-white/20" suppressHydrationWarning>
+            {mounted ? msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
           </span>
           {!isUser && (
             <button
@@ -155,9 +136,15 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, isStreaming])
 
+  const sessionLogged = useRef(false)
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || isStreaming) return
     setShowQuickPrompts(false)
+    if (!sessionLogged.current) {
+      sessionLogged.current = true
+      logActivity({ kind: "chat", message: `AI consultation started: "${text.slice(0, 60)}${text.length > 60 ? "…" : ""}"` })
+    }
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -189,7 +176,12 @@ export default function ChatPage() {
       })
 
       if (!res.ok || !res.body) {
-        throw new Error(`API error ${res.status}`)
+        let detail = ""
+        try {
+          const err = await res.json()
+          if (err?.error) detail = String(err.error)
+        } catch { /* ignore */ }
+        throw new Error(detail || `API error ${res.status}`)
       }
 
       const reader = res.body.getReader()
@@ -227,7 +219,7 @@ export default function ChatPage() {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === aiMsgId
-              ? { ...m, content: "Sorry, I hit an error reaching the AI. Please try again." }
+              ? { ...m, content: `Sorry, I hit an error reaching the AI${(err as Error).message ? ` — ${(err as Error).message}` : ""}. Please try again or check Settings → System status.` }
               : m
           )
         )
@@ -252,6 +244,7 @@ export default function ChatPage() {
   }
 
   const resetChat = () => {
+    sessionLogged.current = false
     abortRef.current?.abort()
     setMessages([{ ...WELCOME, timestamp: new Date() }])
     setShowQuickPrompts(true)

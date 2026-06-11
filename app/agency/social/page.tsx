@@ -358,7 +358,7 @@ export default function SocialHubPage() {
 
       <div className="px-8 py-6 space-y-6">
         {/* Global stats */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "Total Audience", value: (totalFollowers / 1000).toFixed(1) + "K", icon: Users, color: "text-violet-400", sub: "across connected platforms" },
             { label: "Weekly Reach", value: totalReach, icon: Eye, color: "text-pink-400", sub: "+18% vs last week" },
@@ -383,7 +383,7 @@ export default function SocialHubPage() {
             <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">Connected Platforms</h2>
             <span className="text-[10px] text-white/25">{connectedPlatforms.length} of {PLATFORMS.length} connected</span>
           </div>
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {PLATFORMS.map((p) => (
               <motion.div
                 key={p.id}
@@ -425,8 +425,8 @@ export default function SocialHubPage() {
         </div>
 
         {/* Chart + cross-platform reach */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 bg-[#0f0f1a] border border-white/[0.06] rounded-xl p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 bg-[#0f0f1a] border border-white/[0.06] rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-violet-400" />
@@ -639,7 +639,7 @@ export default function SocialHubPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {INFLUENCERS
               .filter((inf) => influencerNiche === "All" || inf.niche === influencerNiche)
               .filter((inf) => followerRange === "all" || inf.tier === followerRange)

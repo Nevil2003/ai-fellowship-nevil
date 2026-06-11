@@ -184,7 +184,7 @@ export default function ORMPage() {
 
       <div className="px-8 py-6 space-y-6">
         {/* Overview row */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Reputation score */}
           <div className="col-span-1 bg-[#0f0f1a] border border-emerald-500/15 rounded-xl p-5 flex flex-col items-center"
             style={{ boxShadow: "0 0 30px rgba(16,185,129,0.08)" }}>
@@ -228,7 +228,7 @@ export default function ORMPage() {
           </div>
 
           {/* Stats */}
-          <div className="col-span-2 grid grid-cols-2 gap-3">
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               { label: "Total Mentions", value: totalMentions.toString(), sub: `+${weekChange} this week`, icon: MessageCircle, color: "text-violet-400", trend: true },
               { label: "Positive Mentions", value: "95", sub: "62% of all mentions", icon: ThumbsUp, color: "text-emerald-400", trend: true },
@@ -290,9 +290,9 @@ export default function ORMPage() {
           </ResponsiveContainer>
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Mention feed */}
-          <div className="col-span-2">
+          <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest">Live Mentions</h2>
               <div className="flex gap-2">

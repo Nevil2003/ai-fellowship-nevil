@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Sparkles,
@@ -16,6 +16,8 @@ import {
   Check,
   Loader2,
 } from "lucide-react"
+
+import { logActivity, getSettings } from "@/lib/local-stats"
 
 type Tab = "social" | "ads" | "blog" | "email" | "video"
 
@@ -136,9 +138,21 @@ function StreamingOutput({
         </motion.div>
       )}
 
-      <button className="w-full flex items-center justify-center gap-2 py-2.5 border border-white/[0.07] rounded-xl text-xs text-white/40 hover:text-white/60 hover:bg-white/[0.03] transition-all">
+      <button
+        onClick={() => {
+          const blob = new Blob([content], { type: "text/markdown" })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.href = url
+          a.download = `mastical-content-${Date.now()}.md`
+          a.click()
+          URL.revokeObjectURL(url)
+        }}
+        disabled={!content}
+        className="w-full flex items-center justify-center gap-2 py-2.5 border border-white/[0.07] rounded-xl text-xs text-white/40 hover:text-white/60 hover:bg-white/[0.03] transition-all disabled:opacity-40"
+      >
         <Download className="w-3.5 h-3.5" />
-        Export as PDF
+        Download as Markdown
       </button>
     </div>
   )
@@ -147,6 +161,17 @@ function StreamingOutput({
 export default function StudioPage() {
   const [activeTab, setActiveTab] = useState<Tab>("social")
   const [form, setForm] = useState<BriefForm>({ brand: "", audience: "", message: "", tone: "Bold & Energetic" })
+
+  // Pre-fill brief from saved settings
+  useEffect(() => {
+    const s = getSettings()
+    setForm((f) => ({
+      ...f,
+      brand: f.brand || s.defaultBrand,
+      audience: f.audience || s.defaultAudience,
+      tone: s.defaultTone || f.tone,
+    }))
+  }, [])
   const [isGenerating, setIsGenerating] = useState(false)
   const [isScoring, setIsScoring] = useState(false)
   const [streamedContent, setStreamedContent] = useState<string | null>(null)
@@ -206,6 +231,13 @@ export default function StudioPage() {
         }
       }
 
+      if (accumulated.length > 0) {
+        logActivity({
+          kind: "generate",
+          message: `Generated ${activeTabConfig.label.toLowerCase()}${form.brand ? ` for ${form.brand}` : ""}`,
+        })
+      }
+
       // Score the completed content
       if (accumulated.length > 50) {
         setIsScoring(true)
@@ -218,13 +250,20 @@ export default function StudioPage() {
           if (scoreRes.ok) {
             const scoreData = await scoreRes.json()
             setNeuralScore(scoreData)
+            if (typeof scoreData?.overall === "number") {
+              logActivity({
+                kind: "score",
+                message: `${activeTabConfig.label} scored ${scoreData.overall}% neural engagement`,
+                score: scoreData.overall,
+              })
+            }
           }
         } catch { /* score is optional */ }
         setIsScoring(false)
       }
     } catch (err: unknown) {
       if ((err as Error).name !== "AbortError") {
-        setStreamedContent("Error generating content. Please try again.")
+        setStreamedContent("Error generating content. Please try again — or check Settings → System status to confirm the AI engine is configured.")
       }
     } finally {
       setIsGenerating(false)
@@ -241,7 +280,7 @@ export default function StudioPage() {
   return (
     <div className="min-h-full bg-[#09090f]">
       {/* Header */}
-      <div className="px-8 py-6 border-b border-white/[0.06] bg-[#0a0a14]">
+      <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-6 border-b border-white/[0.06] bg-[#0a0a14]">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-black text-white flex items-center gap-2">
