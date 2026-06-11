@@ -2,6 +2,7 @@
 // v2
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useAuth } from "@/lib/use-auth"
 import { motion } from "framer-motion"
 import {
   LayoutDashboard,
@@ -49,6 +50,7 @@ const navGroups = [
 
 export function AgencySidebar() {
   const pathname = usePathname()
+  const { user, isEnabled, signOut } = useAuth()
 
   return (
     <aside className="w-60 shrink-0 h-full bg-[#0a0a14] border-r border-white/[0.06] flex flex-col overflow-hidden">
@@ -153,17 +155,34 @@ export function AgencySidebar() {
         </div>
       </div>
 
-      {/* User profile */}
+      {/* Account */}
       <div className="px-4 py-3 border-t border-white/[0.06]">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-            A
+        {user ? (
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+              {(user.email || "U")[0].toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-white/80 truncate">{user.email}</div>
+              <button
+                onClick={() => signOut()}
+                className="text-[9px] text-white/30 hover:text-white/60 transition-colors"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-white/80 truncate">Admin</div>
-            <div className="text-[9px] text-white/30">Pro Plan · 2 seats</div>
+        ) : isEnabled ? (
+          <Link href="/agency/login">
+            <div className="flex items-center justify-center gap-2 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-white/60 hover:text-white hover:border-violet-500/30 transition-all cursor-pointer">
+              Sign in
+            </div>
+          </Link>
+        ) : (
+          <div className="text-[9px] text-white/25 text-center leading-relaxed">
+            Local mode — data stays in this browser
           </div>
-        </div>
+        )}
       </div>
     </aside>
   )
