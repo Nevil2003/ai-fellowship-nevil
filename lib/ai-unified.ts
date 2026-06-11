@@ -24,14 +24,17 @@ interface AIProvider {
 }
 
 function getProviders(): { primary: AIProvider; fallback: AIProvider } {
-  const openrouterKey = process.env.AI_API_KEY
+  const primaryKey = process.env.AI_API_KEY
   const geminiKey = process.env.GEMINI_API_KEY
+  // Any OpenAI-compatible endpoint works: OpenRouter (default),
+  // Nous Research (Hermes), Groq, Together, etc.
+  const baseUrl = (process.env.AI_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, "")
   const aiModel = process.env.AI_MODEL || "anthropic/claude-sonnet-4.5"
 
   const primary: AIProvider = {
-    name: "openrouter",
-    baseUrl: "https://openrouter.ai/api/v1",
-    apiKey: openrouterKey,
+    name: baseUrl.includes("openrouter.ai") ? "openrouter" : "custom",
+    baseUrl,
+    apiKey: primaryKey,
     model: aiModel,
   }
 
@@ -76,7 +79,10 @@ async function callAI(
     stream: streaming,
   }
 
-  if (jsonMode && provider.name !== "gemini") {
+  // Only OpenRouter is guaranteed to accept response_format; custom
+  // endpoints (e.g. Nous) rely on the prompt's JSON-only instruction
+  // plus the regex fallback in callAIJSON.
+  if (jsonMode && provider.name === "openrouter") {
     body.response_format = { type: "json_object" }
   }
 

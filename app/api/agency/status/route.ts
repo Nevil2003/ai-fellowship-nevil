@@ -14,6 +14,11 @@ export async function GET() {
       gemini,
       ready: openrouter || gemini,
       model: openrouter ? process.env.AI_MODEL || "anthropic/claude-sonnet-4.5" : gemini ? "gemini-2.0-flash" : null,
+      endpoint: openrouter
+        ? new URL(process.env.AI_BASE_URL || "https://openrouter.ai/api/v1").hostname
+        : gemini
+          ? "generativelanguage.googleapis.com"
+          : null,
     },
     supabase: !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   })
