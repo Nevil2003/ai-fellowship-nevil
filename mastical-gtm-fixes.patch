@@ -1,0 +1,1773 @@
+From 18efeed64669567623e3057ecfc606b703335857 Mon Sep 17 00:00:00 2001
+From: Mastical Fixes <fixes@local>
+Date: Thu, 11 Jun 2026 08:03:58 +0000
+Subject: [PATCH] GTM readiness: fix fonts, hydration, neural score bug, mobile
+ responsiveness, real settings page, activity-driven dashboard, Mastical OG
+ rebrand
+
+---
+ app/agency/analytics/page.tsx  |   6 +-
+ app/agency/chat/page.tsx       |  63 ++++---
+ app/agency/layout.tsx          |   9 +-
+ app/agency/neural/page.tsx     |  60 ++++---
+ app/agency/orm/page.tsx        |   8 +-
+ app/agency/page.tsx            | 291 ++++++++++++++++++++-------------
+ app/agency/settings/page.tsx   | 197 ++++++++++++++++++++++
+ app/agency/social/page.tsx     |  10 +-
+ app/agency/studio/page.tsx     |  49 +++++-
+ app/api/agency/status/route.ts |  20 +++
+ app/globals.css                |   4 +-
+ app/layout.tsx                 |   5 +-
+ app/opengraph-image.tsx        |  47 ++++--
+ app/page.tsx                   |   2 +-
+ components/agency/shell.tsx    |  74 +++++++++
+ components/agency/sidebar.tsx  |  10 +-
+ lib/local-stats.ts             | 113 +++++++++++++
+ lib/utils.ts                   |  20 ---
+ next.config.mjs                |   2 +-
+ package-lock.json              |  31 ++--
+ package.json                   |   1 +
+ 21 files changed, 771 insertions(+), 251 deletions(-)
+ create mode 100644 app/agency/settings/page.tsx
+ create mode 100644 app/api/agency/status/route.ts
+ create mode 100644 components/agency/shell.tsx
+ create mode 100644 lib/local-stats.ts
+
+diff --git a/app/agency/analytics/page.tsx b/app/agency/analytics/page.tsx
+index edf51f5..8a100d0 100644
+--- a/app/agency/analytics/page.tsx
++++ b/app/agency/analytics/page.tsx
+@@ -278,7 +278,7 @@ export default function AnalyticsPage() {
+       <div className="flex-1 overflow-y-auto px-6 py-6">
+         <div className="space-y-6 max-w-7xl">
+           {/* KPI Cards */}
+-          <div className="grid grid-cols-4 gap-4">
++          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+             <StatCard
+               label="Total Reach"
+               value={totalReach.toLocaleString()}
+@@ -298,7 +298,7 @@ export default function AnalyticsPage() {
+           {/* Platform Cards */}
+           <div>
+             <h2 className="text-sm font-bold text-white mb-4">Platform Performance</h2>
+-            <div className="grid grid-cols-3 gap-4">
++            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+               {data.platforms.map((platform) => (
+                 <PlatformCard key={platform.platform} stats={platform} />
+               ))}
+@@ -306,7 +306,7 @@ export default function AnalyticsPage() {
+           </div>
+ 
+           {/* Charts */}
+-          <div className="grid grid-cols-2 gap-6">
++          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             {/* Timeline Chart */}
+             <motion.div
+               initial={{ opacity: 0, y: 20 }}
+diff --git a/app/agency/chat/page.tsx b/app/agency/chat/page.tsx
+index 5882567..b482a78 100644
+--- a/app/agency/chat/page.tsx
++++ b/app/agency/chat/page.tsx
+@@ -2,6 +2,9 @@
+ 
+ import { useState, useRef, useEffect } from "react"
+ import { motion, AnimatePresence } from "framer-motion"
++import ReactMarkdown from "react-markdown"
++import remarkGfm from "remark-gfm"
++import { logActivity } from "@/lib/local-stats"
+ import {
+   Send,
+   Sparkles,
+@@ -58,6 +61,8 @@ function TypingDots() {
+ 
+ function MessageBubble({ msg }: { msg: Message }) {
+   const [copied, setCopied] = useState(false)
++  const [mounted, setMounted] = useState(false)
++  useEffect(() => setMounted(true), [])
+   const isUser = msg.role === "user"
+ 
+   const copy = () => {
+@@ -66,8 +71,6 @@ function MessageBubble({ msg }: { msg: Message }) {
+     setTimeout(() => setCopied(false), 1500)
+   }
+ 
+-  const lines = msg.content.split("\n")
+-
+   return (
+     <motion.div
+       initial={{ opacity: 0, y: 10 }}
+@@ -93,39 +96,17 @@ function MessageBubble({ msg }: { msg: Message }) {
+               : "bg-[#13131e] border border-white/[0.07] text-white/80"
+           } ${isUser ? "rounded-tr-sm" : "rounded-tl-sm"}`}
+         >
+-          {lines.map((line, i) => {
+-            if (line.startsWith("**") && line.endsWith("**")) {
+-              return (
+-                <p key={i} className="font-bold text-white mt-3 mb-1 first:mt-0">
+-                  {line.replace(/\*\*/g, "")}
+-                </p>
+-              )
+-            }
+-            if (line.startsWith("- ") || line.startsWith("→ ")) {
+-              return (
+-                <p key={i} className="text-white/70 pl-2">
+-                  {line}
+-                </p>
+-              )
+-            }
+-            if (line.startsWith("|")) {
+-              return (
+-                <p key={i} className="font-mono text-xs text-violet-300/70">
+-                  {line}
+-                </p>
+-              )
+-            }
+-            if (line === "") return <div key={i} className="h-1.5" />
+-            return (
+-              <p key={i} className="text-white/75">
+-                {line.replace(/\*\*([^*]+)\*\*/g, "$1")}
+-              </p>
+-            )
+-          })}
++          {isUser ? (
++            <p className="whitespace-pre-wrap">{msg.content}</p>
++          ) : (
++            <div className="prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-p:text-white/75 prose-strong:text-white prose-headings:text-white prose-headings:mt-3 prose-headings:mb-1.5 prose-li:my-0.5 prose-li:text-white/70 prose-table:text-xs prose-th:text-violet-300 prose-td:text-white/70 prose-code:text-violet-300 prose-a:text-violet-400">
++              <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
++            </div>
++          )}
+         </div>
+         <div className={`flex items-center gap-2 mt-1.5 px-1 ${isUser ? "flex-row-reverse" : ""}`}>
+-          <span className="text-[10px] text-white/20">
+-            {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
++          <span className="text-[10px] text-white/20" suppressHydrationWarning>
++            {mounted ? msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+           </span>
+           {!isUser && (
+             <button
+@@ -155,9 +136,15 @@ export default function ChatPage() {
+     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+   }, [messages, isStreaming])
+ 
++  const sessionLogged = useRef(false)
++
+   const sendMessage = async (text: string) => {
+     if (!text.trim() || isStreaming) return
+     setShowQuickPrompts(false)
++    if (!sessionLogged.current) {
++      sessionLogged.current = true
++      logActivity({ kind: "chat", message: `AI consultation started: "${text.slice(0, 60)}${text.length > 60 ? "…" : ""}"` })
++    }
+ 
+     const userMsg: Message = {
+       id: Date.now().toString(),
+@@ -189,7 +176,12 @@ export default function ChatPage() {
+       })
+ 
+       if (!res.ok || !res.body) {
+-        throw new Error(`API error ${res.status}`)
++        let detail = ""
++        try {
++          const err = await res.json()
++          if (err?.error) detail = String(err.error)
++        } catch { /* ignore */ }
++        throw new Error(detail || `API error ${res.status}`)
+       }
+ 
+       const reader = res.body.getReader()
+@@ -227,7 +219,7 @@ export default function ChatPage() {
+         setMessages((prev) =>
+           prev.map((m) =>
+             m.id === aiMsgId
+-              ? { ...m, content: "Sorry, I hit an error reaching the AI. Please try again." }
++              ? { ...m, content: `Sorry, I hit an error reaching the AI${(err as Error).message ? ` — ${(err as Error).message}` : ""}. Please try again or check Settings → System status.` }
+               : m
+           )
+         )
+@@ -252,6 +244,7 @@ export default function ChatPage() {
+   }
+ 
+   const resetChat = () => {
++    sessionLogged.current = false
+     abortRef.current?.abort()
+     setMessages([{ ...WELCOME, timestamp: new Date() }])
+     setShowQuickPrompts(true)
+diff --git a/app/agency/layout.tsx b/app/agency/layout.tsx
+index aeeb8f7..bfbb43a 100644
+--- a/app/agency/layout.tsx
++++ b/app/agency/layout.tsx
+@@ -1,4 +1,4 @@
+-import { AgencySidebar } from "@/components/agency/sidebar"
++import { AgencyShell } from "@/components/agency/shell"
+ 
+ export const metadata = {
+   title: "Mastical Agency OS — AI-Powered Content Operations Platform",
+@@ -7,10 +7,5 @@ export const metadata = {
+ }
+ 
+ export default function AgencyLayout({ children }: { children: React.ReactNode }) {
+-  return (
+-    <div className="flex h-screen overflow-hidden bg-[#09090f]">
+-      <AgencySidebar />
+-      <main className="flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
+-    </div>
+-  )
++  return <AgencyShell>{children}</AgencyShell>
+ }
+diff --git a/app/agency/neural/page.tsx b/app/agency/neural/page.tsx
+index ad4c3cd..b0beba3 100644
+--- a/app/agency/neural/page.tsx
++++ b/app/agency/neural/page.tsx
+@@ -20,6 +20,7 @@ import {
+   Download,
+   Copy,
+ } from "lucide-react"
++import { logActivity } from "@/lib/local-stats"
+ import {
+   Radar,
+   RadarChart,
+@@ -243,28 +244,47 @@ export default function NeuralPage() {
+ 
+       if (res.ok) {
+         const apiResult = await res.json()
+-        // Map API response to ScoreResult format
+-        if (apiResult.data) {
++        // The API returns the score JSON directly (no wrapper); also
++        // support a { data: ... } wrapper for forward compatibility.
++        const d = apiResult?.data ?? apiResult
++        if (d && typeof d.overall === "number") {
++          const dims = d.dimensions || {}
++          // API uses "urgencySignal"; the UI uses "urgency"
++          const verdictMap: Record<string, ScoreResult["verdict"]> = {
++            excellent: "excellent",
++            strong: "strong",
++            good: "average",
++            fair: "average",
++            average: "average",
++            weak: "weak",
++          }
+           const mapped: ScoreResult = {
+-            overall: apiResult.data.overall || 75,
+-            dimensions: apiResult.data.dimensions || {
+-              emotionalResonance: 75,
+-              visualAttention: 72,
+-              cognitiveLoad: 80,
+-              memorability: 68,
+-              intentAlignment: 76,
+-              urgency: 70,
++            overall: d.overall,
++            dimensions: {
++              emotionalResonance: dims.emotionalResonance ?? 70,
++              visualAttention: dims.visualAttention ?? 70,
++              cognitiveLoad: dims.cognitiveLoad ?? 70,
++              memorability: dims.memorability ?? 70,
++              intentAlignment: dims.intentAlignment ?? 70,
++              urgency: dims.urgency ?? dims.urgencySignal ?? 70,
+             },
+-            recommendations: apiResult.data.recommendations?.map((r: any) => r.action) || [],
++            recommendations:
++              d.recommendations?.map((r: any) => (typeof r === "string" ? r : r.action)).filter(Boolean) || [],
+             heatmapZones: [
+-              { label: "Hook", intensity: "high", x: 20, y: 15 },
+-              { label: "Social Proof", intensity: "high", x: 70, y: 60 },
+-              { label: "CTA", intensity: "medium", x: 50, y: 88 },
+-              { label: "Body", intensity: "low", x: 40, y: 45 },
++              { label: "Hook", intensity: d.heatmap?.opening ?? "high", x: 20, y: 15 },
++              { label: "Body", intensity: d.heatmap?.middle ?? "medium", x: 40, y: 45 },
++              { label: "CTA", intensity: d.heatmap?.closing ?? "medium", x: 50, y: 88 },
+             ],
+-            verdict: apiResult.data.label?.toLowerCase() as any || "average",
++            verdict: verdictMap[String(d.label || "").toLowerCase()] || "average",
+           }
+           setResult(mapped)
++          logActivity({
++            kind: "score",
++            message: `Content scored ${mapped.overall}% neural engagement`,
++            score: mapped.overall,
++          })
++        } else {
++          setResult(scoreContent(content))
+         }
+       } else {
+         // Fallback to local scoring
+@@ -293,7 +313,7 @@ export default function NeuralPage() {
+   return (
+     <div className="min-h-full bg-[#09090f]">
+       {/* Header */}
+-      <div className="px-8 py-6 border-b border-white/[0.06] bg-[#0a0a14]">
++      <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-6 border-b border-white/[0.06] bg-[#0a0a14]">
+         <div className="flex items-center justify-between">
+           <div>
+             <h1 className="text-xl font-black text-white flex items-center gap-2">
+@@ -505,7 +525,7 @@ export default function NeuralPage() {
+             {result && !isAnalyzing && (
+               <motion.div key="result" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+                 {/* Overall score */}
+-                <div className="grid grid-cols-3 gap-4">
++                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                   <div
+                     className="col-span-1 rounded-2xl border bg-[#0f0f1a] p-6 flex flex-col items-center justify-center"
+                     style={{
+@@ -524,7 +544,7 @@ export default function NeuralPage() {
+                   </div>
+ 
+                   {/* Radar chart */}
+-                  <div className="col-span-2 rounded-2xl border border-white/[0.06] bg-[#0f0f1a] p-5">
++                  <div className="lg:col-span-2 rounded-2xl border border-white/[0.06] bg-[#0f0f1a] p-5">
+                     <p className="text-[10px] text-white/30 uppercase tracking-widest font-semibold mb-3">
+                       Neural Dimension Analysis
+                     </p>
+@@ -551,7 +571,7 @@ export default function NeuralPage() {
+                 </div>
+ 
+                 {/* Dimension scores */}
+-                <div className="grid grid-cols-3 gap-3">
++                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                   {Object.entries(result.dimensions).map(([key, value]) => {
+                     const Icon = dimensionIcons[key]
+                     const color = value >= 80 ? "text-emerald-400" : value >= 65 ? "text-blue-400" : "text-amber-400"
+diff --git a/app/agency/orm/page.tsx b/app/agency/orm/page.tsx
+index cf463f1..e58d7ad 100644
+--- a/app/agency/orm/page.tsx
++++ b/app/agency/orm/page.tsx
+@@ -184,7 +184,7 @@ export default function ORMPage() {
+ 
+       <div className="px-8 py-6 space-y-6">
+         {/* Overview row */}
+-        <div className="grid grid-cols-4 gap-4">
++        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+           {/* Reputation score */}
+           <div className="col-span-1 bg-[#0f0f1a] border border-emerald-500/15 rounded-xl p-5 flex flex-col items-center"
+             style={{ boxShadow: "0 0 30px rgba(16,185,129,0.08)" }}>
+@@ -228,7 +228,7 @@ export default function ORMPage() {
+           </div>
+ 
+           {/* Stats */}
+-          <div className="col-span-2 grid grid-cols-2 gap-3">
++          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+             {[
+               { label: "Total Mentions", value: totalMentions.toString(), sub: `+${weekChange} this week`, icon: MessageCircle, color: "text-violet-400", trend: true },
+               { label: "Positive Mentions", value: "95", sub: "62% of all mentions", icon: ThumbsUp, color: "text-emerald-400", trend: true },
+@@ -290,9 +290,9 @@ export default function ORMPage() {
+           </ResponsiveContainer>
+         </div>
+ 
+-        <div className="grid grid-cols-3 gap-6">
++        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+           {/* Mention feed */}
+-          <div className="col-span-2">
++          <div className="lg:col-span-2">
+             <div className="flex items-center justify-between mb-4">
+               <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest">Live Mentions</h2>
+               <div className="flex gap-2">
+diff --git a/app/agency/page.tsx b/app/agency/page.tsx
+index 964089e..4106c91 100644
+--- a/app/agency/page.tsx
++++ b/app/agency/page.tsx
+@@ -1,5 +1,6 @@
+ "use client"
+ 
++import { useEffect, useState } from "react"
+ import { motion } from "framer-motion"
+ import Link from "next/link"
+ import {
+@@ -9,51 +10,23 @@ import {
+   Brain,
+   ArrowRight,
+   TrendingUp,
+-  Users,
+   FileText,
+   Zap,
+   ExternalLink,
+   Clock,
+   CheckCircle2,
+-  Circle,
+   BarChart2,
+   Flame,
++  Activity,
+ } from "lucide-react"
+-
+-const stats = [
+-  {
+-    label: "Active Campaigns",
+-    value: "12",
+-    change: "+3 this week",
+-    icon: Kanban,
+-    color: "violet",
+-    glow: "rgba(139,92,246,0.15)",
+-  },
+-  {
+-    label: "Content Generated",
+-    value: "248",
+-    change: "+41 this week",
+-    icon: FileText,
+-    color: "pink",
+-    glow: "rgba(236,72,153,0.15)",
+-  },
+-  {
+-    label: "Team Online",
+-    value: "4 / 6",
+-    change: "2 members offline",
+-    icon: Users,
+-    color: "cyan",
+-    glow: "rgba(6,182,212,0.15)",
+-  },
+-  {
+-    label: "Avg Neural Score",
+-    value: "87%",
+-    change: "+5% vs last month",
+-    icon: Brain,
+-    color: "green",
+-    glow: "rgba(16,185,129,0.15)",
+-  },
+-]
++import {
++  getActivity,
++  getStats,
++  getSettings,
++  timeAgo,
++  type ActivityEvent,
++  type UsageStats,
++} from "@/lib/local-stats"
+ 
+ const quickActions = [
+   {
+@@ -90,44 +63,12 @@ const quickActions = [
+   },
+ ]
+ 
+-const activity = [
+-  {
+-    icon: CheckCircle2,
+-    color: "text-emerald-400",
+-    message: "Meta Ad copy for Q2 Campaign scored 91% neural engagement",
+-    time: "2m ago",
+-  },
+-  {
+-    icon: Sparkles,
+-    color: "text-violet-400",
+-    message: "Jordan generated 6 Instagram posts for FitLife brand",
+-    time: "18m ago",
+-  },
+-  {
+-    icon: Users,
+-    color: "text-pink-400",
+-    message: "Sarah moved 'TechCorp Launch' to Review stage",
+-    time: "34m ago",
+-  },
+-  {
+-    icon: Brain,
+-    color: "text-cyan-400",
+-    message: "Email newsletter scored 79% — 3 recommendations applied",
+-    time: "1h ago",
+-  },
+-  {
+-    icon: MessageSquareText,
+-    color: "text-yellow-400",
+-    message: "AI Consultant session: Brand strategy for NovaSkin completed",
+-    time: "2h ago",
+-  },
+-  {
+-    icon: Circle,
+-    color: "text-white/30",
+-    message: "New workspace campaign created: 'UrbanWear Summer Drop'",
+-    time: "3h ago",
+-  },
+-]
++const ICON_BY_KIND = {
++  generate: { icon: Sparkles, color: "text-violet-400" },
++  score: { icon: Brain, color: "text-cyan-400" },
++  chat: { icon: MessageSquareText, color: "text-yellow-400" },
++  campaign: { icon: Kanban, color: "text-pink-400" },
++} as const
+ 
+ const colorMap: Record<string, string> = {
+   violet: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+@@ -145,12 +86,107 @@ const fadeUp = {
+   }),
+ }
+ 
++function weekRangeLabel(): string {
++  const now = new Date()
++  const start = new Date(now)
++  start.setDate(now.getDate() - 6)
++  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
++  return `${fmt(start)} – ${fmt(now)}`
++}
++
++function last7DayLabels(): string[] {
++  const labels: string[] = []
++  const now = new Date()
++  for (let i = 6; i >= 0; i--) {
++    const d = new Date(now)
++    d.setDate(now.getDate() - i)
++    labels.push(d.toLocaleDateString("en-US", { weekday: "short" }))
++  }
++  return labels
++}
++
+ export default function AgencyDashboard() {
+-  const hour = new Date().getHours()
+-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
++  // All time/locale-dependent values are computed after mount to avoid
++  // server/client hydration mismatches (React error #418).
++  const [mounted, setMounted] = useState(false)
++  const [greeting, setGreeting] = useState("Welcome back")
++  const [userName, setUserName] = useState("Admin")
++  const [stats, setStats] = useState<UsageStats | null>(null)
++  const [events, setEvents] = useState<ActivityEvent[]>([])
++  const [weekLabel, setWeekLabel] = useState("")
++  const [dayLabels, setDayLabels] = useState<string[]>(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
++
++  useEffect(() => {
++    const refresh = () => {
++      setStats(getStats())
++      setEvents(getActivity())
++      setUserName(getSettings().userName || "Admin")
++    }
++    const hour = new Date().getHours()
++    setGreeting(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening")
++    setWeekLabel(weekRangeLabel())
++    setDayLabels(last7DayLabels())
++    refresh()
++    setMounted(true)
++    window.addEventListener("mastical:activity", refresh)
++    window.addEventListener("mastical:settings", refresh)
++    return () => {
++      window.removeEventListener("mastical:activity", refresh)
++      window.removeEventListener("mastical:settings", refresh)
++    }
++  }, [])
++
++  const hasUsage = (stats?.contentGenerated ?? 0) + (stats?.scoresRun ?? 0) + (stats?.chatSessions ?? 0) > 0
++
++  const statCards = [
++    {
++      label: "Chat Sessions",
++      value: stats ? String(stats.chatSessions) : "—",
++      change: hasUsage ? "strategy consultations run" : "start your first consultation",
++      icon: MessageSquareText,
++      color: "violet",
++      glow: "rgba(139,92,246,0.15)",
++    },
++    {
++      label: "Content Generated",
++      value: stats ? String(stats.contentGenerated) : "—",
++      change: stats && stats.thisWeek.generated > 0 ? `+${stats.thisWeek.generated} this week` : "generate in Content Studio",
++      icon: FileText,
++      color: "pink",
++      glow: "rgba(236,72,153,0.15)",
++    },
++    {
++      label: "Pieces Scored",
++      value: stats ? String(stats.scoresRun) : "—",
++      change: stats && stats.thisWeek.scored > 0 ? `+${stats.thisWeek.scored} this week` : "run a Neural Score",
++      icon: Activity,
++      color: "cyan",
++      glow: "rgba(6,182,212,0.15)",
++    },
++    {
++      label: "Avg Neural Score",
++      value: stats?.avgNeuralScore != null ? `${stats.avgNeuralScore}%` : "—",
++      change: stats?.avgNeuralScore != null ? "across scored content" : "no content scored yet",
++      icon: Brain,
++      color: "green",
++      glow: "rgba(16,185,129,0.15)",
++    },
++  ]
++
++  // Bars: real generation activity per day for the last 7 days
++  const dayBuckets = (() => {
++    const buckets = new Array(7).fill(0)
++    const now = new Date()
++    for (const e of events) {
++      const daysAgo = Math.floor((now.getTime() - e.ts) / (24 * 60 * 60 * 1000))
++      if (daysAgo >= 0 && daysAgo < 7) buckets[6 - daysAgo]++
++    }
++    return buckets
++  })()
++  const maxBucket = Math.max(...dayBuckets, 1)
+ 
+   return (
+-    <div className="min-h-full px-8 py-8 max-w-6xl mx-auto">
++    <div className="min-h-full px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-6xl mx-auto">
+       {/* Header */}
+       <motion.div
+         initial={{ opacity: 0, y: -10 }}
+@@ -160,22 +196,26 @@ export default function AgencyDashboard() {
+       >
+         <div className="flex items-center gap-2 mb-1">
+           <Flame className="w-4 h-4 text-orange-400" />
+-          <span className="text-xs text-white/30 font-medium">Day 14 streak — keep the momentum</span>
++          <span className="text-xs text-white/30 font-medium">
++            {hasUsage ? "Momentum building — keep shipping" : "Day 1 — let's get your first win"}
++          </span>
+         </div>
+-        <h1 className="text-3xl font-black text-white">
+-          {greeting}, Admin.{" "}
++        <h1 className="text-2xl sm:text-3xl font-black text-white">
++          {greeting}, {userName}.{" "}
+           <span className="bg-gradient-to-r from-violet-400 to-pink-400 bg-clip-text text-transparent">
+             Let&apos;s build.
+           </span>
+         </h1>
+         <p className="text-sm text-white/40 mt-1.5">
+-          Your agency OS is live — 4 campaigns running, 2 pending neural review.
++          {hasUsage
++            ? "Your agency OS is live — pick up where you left off."
++            : "Your agency OS is live — start with an AI consultation or generate your first content."}
+         </p>
+       </motion.div>
+ 
+       {/* Stats */}
+-      <div className="grid grid-cols-4 gap-4 mb-8">
+-        {stats.map((stat, i) => {
++      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
++        {statCards.map((stat, i) => {
+           const Icon = stat.icon
+           return (
+             <motion.div
+@@ -203,13 +243,13 @@ export default function AgencyDashboard() {
+         })}
+       </div>
+ 
+-      <div className="grid grid-cols-3 gap-6 mb-8">
++      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+         {/* Quick Actions */}
+-        <div className="col-span-2">
++        <div className="lg:col-span-2">
+           <div className="flex items-center justify-between mb-4">
+             <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest">Quick Actions</h2>
+           </div>
+-          <div className="grid grid-cols-2 gap-3">
++          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+             {quickActions.map((action, i) => {
+               const Icon = action.icon
+               return (
+@@ -248,30 +288,48 @@ export default function AgencyDashboard() {
+         {/* Activity Feed */}
+         <div>
+           <div className="flex items-center justify-between mb-4">
+-            <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest">Live Activity</h2>
+-            <span className="flex items-center gap-1.5">
+-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+-              <span className="text-[10px] text-emerald-400/70">Live</span>
+-            </span>
++            <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest">Activity</h2>
++            {hasUsage && (
++              <span className="flex items-center gap-1.5">
++                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
++                <span className="text-[10px] text-emerald-400/70">Live</span>
++              </span>
++            )}
+           </div>
++          {mounted && events.length === 0 && (
++            <div className="p-4 rounded-xl border border-white/[0.06] bg-[#0f0f1a]">
++              <p className="text-xs text-white/40 leading-relaxed">
++                No activity yet. Everything you generate, score, or discuss with the AI consultant will
++                show up here.
++              </p>
++              <Link
++                href="/agency/studio"
++                className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
++              >
++                Generate your first content
++                <ArrowRight className="w-3 h-3" />
++              </Link>
++            </div>
++          )}
+           <div className="space-y-1">
+-            {activity.map((item, i) => {
+-              const Icon = item.icon
++            {events.slice(0, 6).map((item, i) => {
++              const meta = ICON_BY_KIND[item.kind] || { icon: CheckCircle2, color: "text-emerald-400" }
++              const Icon = meta.icon
+               return (
+                 <motion.div
+-                  key={i}
++                  key={`${item.ts}-${i}`}
+                   custom={i + 8}
+                   initial="hidden"
+                   animate="show"
+                   variants={fadeUp}
+                   className="flex gap-3 p-3 rounded-lg hover:bg-white/[0.03] transition-colors"
+                 >
+-                  <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${item.color}`} />
++                  <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${meta.color}`} />
+                   <div className="flex-1 min-w-0">
+                     <p className="text-xs text-white/60 leading-relaxed">{item.message}</p>
+                     <div className="flex items-center gap-1 mt-1">
+                       <Clock className="w-2.5 h-2.5 text-white/20" />
+-                      <span className="text-[10px] text-white/25">{item.time}</span>
++                      <span className="text-[10px] text-white/25">{timeAgo(item.ts)}</span>
+                     </div>
+                   </div>
+                 </motion.div>
+@@ -291,23 +349,30 @@ export default function AgencyDashboard() {
+         <div className="flex items-center justify-between mb-4">
+           <div className="flex items-center gap-2">
+             <BarChart2 className="w-4 h-4 text-violet-400" />
+-            <span className="text-sm font-bold text-white">Weekly Content Performance</span>
++            <span className="text-sm font-bold text-white">Weekly Activity</span>
+           </div>
+-          <span className="text-xs text-white/30">Apr 14 – Apr 21</span>
++          <span className="text-xs text-white/30">{weekLabel}</span>
+         </div>
+         <div className="grid grid-cols-7 gap-2">
+-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => {
+-            const heights = [45, 70, 55, 90, 75, 40, 60]
+-            const scores = [82, 88, 79, 94, 91, 76, 87]
++          {dayLabels.map((day, i) => {
++            const count = dayBuckets[i]
++            const height = count === 0 ? 6 : Math.max(15, Math.round((count / maxBucket) * 100))
+             return (
+-              <div key={day} className="flex flex-col items-center gap-2">
++              <div key={`${day}-${i}`} className="flex flex-col items-center gap-2">
++                <span className="text-[9px] text-white/40 font-semibold h-3">
++                  {count > 0 ? count : ""}
++                </span>
+                 <div className="w-full flex items-end justify-center h-16">
+                   <motion.div
+                     initial={{ height: 0 }}
+-                    animate={{ height: `${heights[i]}%` }}
++                    animate={{ height: `${height}%` }}
+                     transition={{ delay: 0.6 + i * 0.05, duration: 0.5, ease: "easeOut" }}
+-                    className="w-full rounded-sm bg-gradient-to-t from-violet-600/60 to-violet-400/30 max-h-full"
+-                    title={`Neural Score: ${scores[i]}%`}
++                    className={`w-full rounded-sm max-h-full ${
++                      count > 0
++                        ? "bg-gradient-to-t from-violet-600/60 to-violet-400/30"
++                        : "bg-white/[0.04]"
++                    }`}
++                    title={`${count} action${count === 1 ? "" : "s"}`}
+                   />
+                 </div>
+                 <span className="text-[9px] text-white/30 font-medium">{day}</span>
+@@ -315,6 +380,11 @@ export default function AgencyDashboard() {
+             )
+           })}
+         </div>
++        {mounted && !hasUsage && (
++          <p className="text-[10px] text-white/25 mt-3">
++            This chart fills in as you use the platform — generations, scores, and consultations all count.
++          </p>
++        )}
+       </motion.div>
+ 
+       {/* Mastical Growth Partner Banner */}
+@@ -322,14 +392,13 @@ export default function AgencyDashboard() {
+         initial={{ opacity: 0, y: 20 }}
+         animate={{ opacity: 1, y: 0 }}
+         transition={{ delay: 0.7, duration: 0.5 }}
+-        className="relative overflow-hidden rounded-2xl p-8 border border-violet-500/20 bg-gradient-to-r from-violet-950/80 via-indigo-950/60 to-violet-950/80"
++        className="relative overflow-hidden rounded-2xl p-6 sm:p-8 border border-violet-500/20 bg-gradient-to-r from-violet-950/80 via-indigo-950/60 to-violet-950/80"
+       >
+-        {/* Glow orbs */}
+         <div className="absolute -top-1/2 right-1/4 w-80 h-80 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+         <div className="absolute -bottom-1/3 -left-1/6 w-64 h-64 bg-pink-600/10 rounded-full blur-3xl pointer-events-none" />
+         <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
+ 
+-        <div className="relative flex items-center justify-between gap-8">
++        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-6 sm:gap-8">
+           <div className="flex-1">
+             <div className="flex items-center gap-2 mb-3">
+               <Zap className="w-4 h-4 text-yellow-400" />
+@@ -337,7 +406,7 @@ export default function AgencyDashboard() {
+                 Growth Partner
+               </span>
+             </div>
+-            <h2 className="text-2xl font-black text-white mb-3 leading-tight">
++            <h2 className="text-xl sm:text-2xl font-black text-white mb-3 leading-tight">
+               Ready to scale beyond content?
+             </h2>
+             <p className="text-sm text-white/50 leading-relaxed max-w-xl">
+@@ -351,7 +420,7 @@ export default function AgencyDashboard() {
+               href="https://mastical.com"
+               target="_blank"
+               rel="noopener noreferrer"
+-              className="inline-flex items-center gap-2.5 px-8 py-4 bg-gradient-to-r from-violet-600 to-pink-500 rounded-xl text-white font-bold text-sm hover:opacity-90 hover:scale-105 transition-all duration-200 shadow-xl shadow-violet-500/30 cursor-pointer"
++              className="inline-flex items-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-violet-600 to-pink-500 rounded-xl text-white font-bold text-sm hover:opacity-90 hover:scale-105 transition-all duration-200 shadow-xl shadow-violet-500/30 cursor-pointer"
+             >
+               Contact Mastical.com
+               <ExternalLink className="w-4 h-4" />
+diff --git a/app/agency/settings/page.tsx b/app/agency/settings/page.tsx
+new file mode 100644
+index 0000000..226fbf0
+--- /dev/null
++++ b/app/agency/settings/page.tsx
+@@ -0,0 +1,197 @@
++"use client"
++
++import { useEffect, useState } from "react"
++import { motion } from "framer-motion"
++import {
++  Settings,
++  User,
++  Sparkles,
++  CheckCircle2,
++  XCircle,
++  Save,
++  Server,
++  Database,
++  Loader2,
++} from "lucide-react"
++import { getSettings, saveSettings, type LocalSettings } from "@/lib/local-stats"
++
++const TONES = ["Professional", "Bold & Energetic", "Casual & Friendly", "Inspirational", "Witty", "Urgent"]
++
++interface SystemStatus {
++  ai: { openrouter: boolean; gemini: boolean; ready: boolean; model: string | null }
++  supabase: boolean
++}
++
++export default function SettingsPage() {
++  const [settings, setSettings] = useState<LocalSettings | null>(null)
++  const [saved, setSaved] = useState(false)
++  const [status, setStatus] = useState<SystemStatus | null>(null)
++  const [statusLoading, setStatusLoading] = useState(true)
++
++  useEffect(() => {
++    setSettings(getSettings())
++    fetch("/api/agency/status")
++      .then((r) => r.json())
++      .then(setStatus)
++      .catch(() => setStatus(null))
++      .finally(() => setStatusLoading(false))
++  }, [])
++
++  const update = (patch: Partial<LocalSettings>) => {
++    setSettings((s) => (s ? { ...s, ...patch } : s))
++    setSaved(false)
++  }
++
++  const save = () => {
++    if (!settings) return
++    saveSettings(settings)
++    setSaved(true)
++    setTimeout(() => setSaved(false), 2000)
++  }
++
++  if (!settings) return null
++
++  return (
++    <div className="min-h-full px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-3xl mx-auto">
++      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
++        <h1 className="text-xl font-black text-white flex items-center gap-2">
++          <Settings className="w-5 h-5 text-violet-400" />
++          Settings
++        </h1>
++        <p className="text-xs text-white/30 mt-0.5">Workspace preferences and system status</p>
++      </motion.div>
++
++      {/* Profile */}
++      <section className="mb-6 p-5 rounded-xl border border-white/[0.06] bg-[#0f0f1a]">
++        <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
++          <User className="w-4 h-4 text-violet-400" />
++          Profile
++        </h2>
++        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
++          <div>
++            <label className="block text-[11px] text-white/40 font-medium mb-1.5">Your name</label>
++            <input
++              value={settings.userName}
++              onChange={(e) => update({ userName: e.target.value })}
++              placeholder="Admin"
++              className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-violet-500/40 transition-colors"
++            />
++          </div>
++          <div>
++            <label className="block text-[11px] text-white/40 font-medium mb-1.5">Workspace name</label>
++            <input
++              value={settings.workspaceName}
++              onChange={(e) => update({ workspaceName: e.target.value })}
++              placeholder="My Workspace"
++              className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-violet-500/40 transition-colors"
++            />
++          </div>
++        </div>
++      </section>
++
++      {/* Content defaults */}
++      <section className="mb-6 p-5 rounded-xl border border-white/[0.06] bg-[#0f0f1a]">
++        <h2 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
++          <Sparkles className="w-4 h-4 text-pink-400" />
++          Content defaults
++        </h2>
++        <p className="text-[11px] text-white/30 mb-4">
++          Pre-fills the Content Studio brief so you don&apos;t retype your brand every time.
++        </p>
++        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
++          <div>
++            <label className="block text-[11px] text-white/40 font-medium mb-1.5">Default brand</label>
++            <input
++              value={settings.defaultBrand}
++              onChange={(e) => update({ defaultBrand: e.target.value })}
++              placeholder="e.g. Mastical"
++              className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-violet-500/40 transition-colors"
++            />
++          </div>
++          <div>
++            <label className="block text-[11px] text-white/40 font-medium mb-1.5">Default audience</label>
++            <input
++              value={settings.defaultAudience}
++              onChange={(e) => update({ defaultAudience: e.target.value })}
++              placeholder="e.g. DTC founders, 25–40"
++              className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-violet-500/40 transition-colors"
++            />
++          </div>
++          <div className="sm:col-span-2">
++            <label className="block text-[11px] text-white/40 font-medium mb-1.5">Default tone</label>
++            <div className="flex flex-wrap gap-2">
++              {TONES.map((tone) => (
++                <button
++                  key={tone}
++                  onClick={() => update({ defaultTone: tone })}
++                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
++                    settings.defaultTone === tone
++                      ? "bg-violet-600/20 border-violet-500/40 text-violet-300"
++                      : "bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/70"
++                  }`}
++                >
++                  {tone}
++                </button>
++              ))}
++            </div>
++          </div>
++        </div>
++      </section>
++
++      {/* System status */}
++      <section className="mb-6 p-5 rounded-xl border border-white/[0.06] bg-[#0f0f1a]">
++        <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
++          <Server className="w-4 h-4 text-cyan-400" />
++          System status
++        </h2>
++        {statusLoading ? (
++          <div className="flex items-center gap-2 text-xs text-white/30">
++            <Loader2 className="w-3.5 h-3.5 animate-spin" />
++            Checking configuration...
++          </div>
++        ) : status ? (
++          <div className="space-y-3">
++            <div className="flex items-center justify-between">
++              <span className="text-xs text-white/60">AI engine</span>
++              {status.ai.ready ? (
++                <span className="flex items-center gap-1.5 text-xs text-emerald-400">
++                  <CheckCircle2 className="w-3.5 h-3.5" />
++                  Connected{status.ai.model ? ` · ${status.ai.model}` : ""}
++                </span>
++              ) : (
++                <span className="flex items-center gap-1.5 text-xs text-red-400">
++                  <XCircle className="w-3.5 h-3.5" />
++                  Not configured — set AI_API_KEY in your deployment
++                </span>
++              )}
++            </div>
++            <div className="flex items-center justify-between">
++              <span className="text-xs text-white/60 flex items-center gap-1.5">
++                <Database className="w-3 h-3 text-white/30" />
++                Database persistence (Supabase)
++              </span>
++              {status.supabase ? (
++                <span className="flex items-center gap-1.5 text-xs text-emerald-400">
++                  <CheckCircle2 className="w-3.5 h-3.5" />
++                  Connected
++                </span>
++              ) : (
++                <span className="text-xs text-white/30">Local mode — data stays in this browser</span>
++              )}
++            </div>
++          </div>
++        ) : (
++          <p className="text-xs text-white/30">Could not reach status endpoint.</p>
++        )}
++      </section>
++
++      <button
++        onClick={save}
++        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-pink-500 rounded-xl text-white font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-violet-500/20"
++      >
++        {saved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
++        {saved ? "Saved" : "Save changes"}
++      </button>
++    </div>
++  )
++}
+diff --git a/app/agency/social/page.tsx b/app/agency/social/page.tsx
+index 9b32027..9be030f 100644
+--- a/app/agency/social/page.tsx
++++ b/app/agency/social/page.tsx
+@@ -358,7 +358,7 @@ export default function SocialHubPage() {
+ 
+       <div className="px-8 py-6 space-y-6">
+         {/* Global stats */}
+-        <div className="grid grid-cols-4 gap-4">
++        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+           {[
+             { label: "Total Audience", value: (totalFollowers / 1000).toFixed(1) + "K", icon: Users, color: "text-violet-400", sub: "across connected platforms" },
+             { label: "Weekly Reach", value: totalReach, icon: Eye, color: "text-pink-400", sub: "+18% vs last week" },
+@@ -383,7 +383,7 @@ export default function SocialHubPage() {
+             <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">Connected Platforms</h2>
+             <span className="text-[10px] text-white/25">{connectedPlatforms.length} of {PLATFORMS.length} connected</span>
+           </div>
+-          <div className="grid grid-cols-5 gap-3">
++          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+             {PLATFORMS.map((p) => (
+               <motion.div
+                 key={p.id}
+@@ -425,8 +425,8 @@ export default function SocialHubPage() {
+         </div>
+ 
+         {/* Chart + cross-platform reach */}
+-        <div className="grid grid-cols-3 gap-4">
+-          <div className="col-span-2 bg-[#0f0f1a] border border-white/[0.06] rounded-xl p-5">
++        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
++          <div className="lg:col-span-2 bg-[#0f0f1a] border border-white/[0.06] rounded-xl p-5">
+             <div className="flex items-center justify-between mb-4">
+               <div className="flex items-center gap-2">
+                 <BarChart2 className="w-4 h-4 text-violet-400" />
+@@ -639,7 +639,7 @@ export default function SocialHubPage() {
+             </div>
+           </div>
+ 
+-          <div className="grid grid-cols-3 gap-4">
++          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+             {INFLUENCERS
+               .filter((inf) => influencerNiche === "All" || inf.niche === influencerNiche)
+               .filter((inf) => followerRange === "all" || inf.tier === followerRange)
+diff --git a/app/agency/studio/page.tsx b/app/agency/studio/page.tsx
+index 43a9601..09d9101 100644
+--- a/app/agency/studio/page.tsx
++++ b/app/agency/studio/page.tsx
+@@ -1,6 +1,6 @@
+ "use client"
+ 
+-import { useState, useRef } from "react"
++import { useState, useRef, useEffect } from "react"
+ import { motion, AnimatePresence } from "framer-motion"
+ import {
+   Sparkles,
+@@ -17,6 +17,8 @@ import {
+   Loader2,
+ } from "lucide-react"
+ 
++import { logActivity, getSettings } from "@/lib/local-stats"
++
+ type Tab = "social" | "ads" | "blog" | "email" | "video"
+ 
+ const TABS: { key: Tab; label: string; icon: React.ElementType; color: string }[] = [
+@@ -136,9 +138,21 @@ function StreamingOutput({
+         </motion.div>
+       )}
+ 
+-      <button className="w-full flex items-center justify-center gap-2 py-2.5 border border-white/[0.07] rounded-xl text-xs text-white/40 hover:text-white/60 hover:bg-white/[0.03] transition-all">
++      <button
++        onClick={() => {
++          const blob = new Blob([content], { type: "text/markdown" })
++          const url = URL.createObjectURL(blob)
++          const a = document.createElement("a")
++          a.href = url
++          a.download = `mastical-content-${Date.now()}.md`
++          a.click()
++          URL.revokeObjectURL(url)
++        }}
++        disabled={!content}
++        className="w-full flex items-center justify-center gap-2 py-2.5 border border-white/[0.07] rounded-xl text-xs text-white/40 hover:text-white/60 hover:bg-white/[0.03] transition-all disabled:opacity-40"
++      >
+         <Download className="w-3.5 h-3.5" />
+-        Export as PDF
++        Download as Markdown
+       </button>
+     </div>
+   )
+@@ -147,6 +161,17 @@ function StreamingOutput({
+ export default function StudioPage() {
+   const [activeTab, setActiveTab] = useState<Tab>("social")
+   const [form, setForm] = useState<BriefForm>({ brand: "", audience: "", message: "", tone: "Bold & Energetic" })
++
++  // Pre-fill brief from saved settings
++  useEffect(() => {
++    const s = getSettings()
++    setForm((f) => ({
++      ...f,
++      brand: f.brand || s.defaultBrand,
++      audience: f.audience || s.defaultAudience,
++      tone: s.defaultTone || f.tone,
++    }))
++  }, [])
+   const [isGenerating, setIsGenerating] = useState(false)
+   const [isScoring, setIsScoring] = useState(false)
+   const [streamedContent, setStreamedContent] = useState<string | null>(null)
+@@ -206,6 +231,13 @@ export default function StudioPage() {
+         }
+       }
+ 
++      if (accumulated.length > 0) {
++        logActivity({
++          kind: "generate",
++          message: `Generated ${activeTabConfig.label.toLowerCase()}${form.brand ? ` for ${form.brand}` : ""}`,
++        })
++      }
++
+       // Score the completed content
+       if (accumulated.length > 50) {
+         setIsScoring(true)
+@@ -218,13 +250,20 @@ export default function StudioPage() {
+           if (scoreRes.ok) {
+             const scoreData = await scoreRes.json()
+             setNeuralScore(scoreData)
++            if (typeof scoreData?.overall === "number") {
++              logActivity({
++                kind: "score",
++                message: `${activeTabConfig.label} scored ${scoreData.overall}% neural engagement`,
++                score: scoreData.overall,
++              })
++            }
+           }
+         } catch { /* score is optional */ }
+         setIsScoring(false)
+       }
+     } catch (err: unknown) {
+       if ((err as Error).name !== "AbortError") {
+-        setStreamedContent("Error generating content. Please try again.")
++        setStreamedContent("Error generating content. Please try again — or check Settings → System status to confirm the AI engine is configured.")
+       }
+     } finally {
+       setIsGenerating(false)
+@@ -241,7 +280,7 @@ export default function StudioPage() {
+   return (
+     <div className="min-h-full bg-[#09090f]">
+       {/* Header */}
+-      <div className="px-8 py-6 border-b border-white/[0.06] bg-[#0a0a14]">
++      <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-6 border-b border-white/[0.06] bg-[#0a0a14]">
+         <div className="flex items-center justify-between">
+           <div>
+             <h1 className="text-xl font-black text-white flex items-center gap-2">
+diff --git a/app/api/agency/status/route.ts b/app/api/agency/status/route.ts
+new file mode 100644
+index 0000000..ce1ead2
+--- /dev/null
++++ b/app/api/agency/status/route.ts
+@@ -0,0 +1,20 @@
++import { NextResponse } from "next/server"
++
++/**
++ * GET /api/agency/status
++ * Reports which backend integrations are configured.
++ * Returns booleans only — never the keys themselves.
++ */
++export async function GET() {
++  const openrouter = !!process.env.AI_API_KEY && process.env.AI_API_KEY !== "YOUR_KEY_HERE"
++  const gemini = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "YOUR_KEY_HERE"
++  return NextResponse.json({
++    ai: {
++      openrouter,
++      gemini,
++      ready: openrouter || gemini,
++      model: openrouter ? process.env.AI_MODEL || "anthropic/claude-sonnet-4.5" : gemini ? "gemini-2.0-flash" : null,
++    },
++    supabase: !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
++  })
++}
+diff --git a/app/globals.css b/app/globals.css
+index 0e65dd7..f0729b9 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -94,8 +94,8 @@
+ }
+ 
+ @theme inline {
+-  --font-sans: 'Geist', 'Geist Fallback';
+-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
++  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
++  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+   --color-background: var(--background);
+   --color-foreground: var(--foreground);
+   --color-card: var(--card);
+diff --git a/app/layout.tsx b/app/layout.tsx
+index 19b7b30..1a0ad04 100644
+--- a/app/layout.tsx
++++ b/app/layout.tsx
+@@ -1,7 +1,10 @@
+ import type { Metadata } from 'next'
++import { GeistSans } from 'geist/font/sans'
++import { GeistMono } from 'geist/font/mono'
+ import './globals.css'
+ 
+ export const metadata: Metadata = {
++  metadataBase: new URL('https://ai-fellowship-nevil.vercel.app'),
+   title: 'Mastical OS — AI-Powered Agency Operations',
+   description: 'Your agency in your pocket. AI-powered content operations, neuromarketing scoring, and strategic consulting.',
+   icons: {
+@@ -16,7 +19,7 @@ export default function RootLayout({
+   children: React.ReactNode
+ }>) {
+   return (
+-    <html lang="en" suppressHydrationWarning>
++    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+       <body className="font-sans antialiased" suppressHydrationWarning>
+         {children}
+       </body>
+diff --git a/app/opengraph-image.tsx b/app/opengraph-image.tsx
+index 0dd07fd..89bef11 100644
+--- a/app/opengraph-image.tsx
++++ b/app/opengraph-image.tsx
+@@ -1,7 +1,7 @@
+ import { ImageResponse } from "next/og"
+ 
+ export const runtime = "edge"
+-export const alt = "Propstical Canvas — see it before you spend on it"
++export const alt = "Mastical Agency OS — your agency in your pocket"
+ export const size = { width: 1200, height: 630 }
+ export const contentType = "image/png"
+ 
+@@ -16,27 +16,44 @@ export default function OGImage() {
+           flexDirection: "column",
+           alignItems: "flex-start",
+           justifyContent: "flex-end",
+-          background: "#0a0a0a",
++          background: "linear-gradient(135deg, #09090f 0%, #14102a 60%, #1a0f2e 100%)",
+           padding: "80px 96px",
+           fontFamily: "sans-serif",
+         }}
+       >
+         {/* Logo mark */}
+-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "48px" }}>
+-          <div style={{ display: "flex", gap: "6px" }}>
+-            <div style={{ width: 28, height: 28, borderRadius: 5, background: "#3ecf6e" }} />
+-            <div style={{ width: 28, height: 28, borderRadius: 5, background: "#3ecf6e", opacity: 0.6 }} />
+-            <div style={{ width: 28, height: 28, borderRadius: 5, background: "#3ecf6e", opacity: 0.3 }} />
+-          </div>
+-          <span style={{ fontSize: 28, fontWeight: 600, color: "#f0f0f0", letterSpacing: "-0.5px" }}>
+-            propstical
++        <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "48px" }}>
++          <svg width="40" height="40" viewBox="0 0 28 28" fill="none">
++            <path
++              d="M7 9C7 6.8 8.8 5 11 5C13.2 5 15 6.8 15 9C15 11.2 13.2 13 11 13C8.8 13 7 14.8 7 17C7 19.2 8.8 21 11 21"
++              stroke="white"
++              strokeWidth="2.2"
++              strokeLinecap="round"
++            />
++            <path
++              d="M21 19C21 21.2 19.2 23 17 23C14.8 23 13 21.2 13 19C13 16.8 14.8 15 17 15C19.2 15 21 13.2 21 11C21 8.8 19.2 7 17 7"
++              stroke="white"
++              strokeWidth="2.2"
++              strokeLinecap="round"
++              strokeOpacity="0.7"
++            />
++          </svg>
++          <span
++            style={{
++              fontSize: 30,
++              fontWeight: 800,
++              color: "#f0f0f0",
++              letterSpacing: "4px",
++            }}
++          >
++            MASTICAL
+           </span>
+         </div>
+ 
+         {/* Headline */}
+         <div
+           style={{
+-            fontSize: 72,
++            fontSize: 70,
+             fontWeight: 700,
+             color: "#f0f0f0",
+             lineHeight: 1.05,
+@@ -44,14 +61,14 @@ export default function OGImage() {
+             marginBottom: 32,
+           }}
+         >
+-          See it before
++          Your agency,
+           <br />
+-          <span style={{ color: "#3ecf6e" }}>you spend on it.</span>
++          <span style={{ color: "#a78bfa" }}>in your pocket.</span>
+         </div>
+ 
+         {/* Subline */}
+-        <div style={{ fontSize: 24, color: "#666", fontWeight: 400, letterSpacing: "-0.3px" }}>
+-          India&rsquo;s AI home decision canvas &middot; propstical.com
++        <div style={{ fontSize: 24, color: "#8a8a9a", fontWeight: 400, letterSpacing: "-0.3px" }}>
++          AI content operations &middot; neural scoring &middot; strategy on demand
+         </div>
+       </div>
+     ),
+diff --git a/app/page.tsx b/app/page.tsx
+index 36c2e7d..3ef44cd 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -1,5 +1,5 @@
+ import { redirect } from "next/navigation"
+ 
+ export default function Home() {
+-  redirect("/agency/workspace")
++  redirect("/agency")
+ }
+diff --git a/components/agency/shell.tsx b/components/agency/shell.tsx
+new file mode 100644
+index 0000000..ac8e08a
+--- /dev/null
++++ b/components/agency/shell.tsx
+@@ -0,0 +1,74 @@
++"use client"
++
++import { useState, useEffect } from "react"
++import { usePathname } from "next/navigation"
++import { motion, AnimatePresence } from "framer-motion"
++import { Menu, X } from "lucide-react"
++import { AgencySidebar } from "@/components/agency/sidebar"
++
++export function AgencyShell({ children }: { children: React.ReactNode }) {
++  const [mobileOpen, setMobileOpen] = useState(false)
++  const pathname = usePathname()
++
++  // Close the mobile drawer on navigation
++  useEffect(() => {
++    setMobileOpen(false)
++  }, [pathname])
++
++  return (
++    <div className="flex h-dvh overflow-hidden bg-[#09090f]">
++      {/* Desktop sidebar */}
++      <div className="hidden lg:flex h-full">
++        <AgencySidebar />
++      </div>
++
++      {/* Mobile drawer */}
++      <AnimatePresence>
++        {mobileOpen && (
++          <>
++            <motion.div
++              initial={{ opacity: 0 }}
++              animate={{ opacity: 1 }}
++              exit={{ opacity: 0 }}
++              onClick={() => setMobileOpen(false)}
++              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
++            />
++            <motion.div
++              initial={{ x: -260 }}
++              animate={{ x: 0 }}
++              exit={{ x: -260 }}
++              transition={{ type: "tween", duration: 0.2 }}
++              className="fixed inset-y-0 left-0 z-50 lg:hidden"
++            >
++              <AgencySidebar />
++              <button
++                onClick={() => setMobileOpen(false)}
++                aria-label="Close menu"
++                className="absolute top-4 -right-10 w-8 h-8 rounded-lg bg-white/10 backdrop-blur flex items-center justify-center text-white/70"
++              >
++                <X className="w-4 h-4" />
++              </button>
++            </motion.div>
++          </>
++        )}
++      </AnimatePresence>
++
++      <div className="flex-1 flex flex-col min-w-0">
++        {/* Mobile top bar */}
++        <div className="lg:hidden shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] bg-[#0a0a14]">
++          <button
++            onClick={() => setMobileOpen(true)}
++            aria-label="Open menu"
++            className="w-9 h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] flex items-center justify-center text-white/60"
++          >
++            <Menu className="w-4 h-4" />
++          </button>
++          <div className="text-[13px] font-black text-white tracking-[0.18em] uppercase">MASTICAL</div>
++          <div className="text-[8px] text-white/30 tracking-[0.22em] uppercase mt-0.5">Agency OS</div>
++        </div>
++
++        <main className="flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
++      </div>
++    </div>
++  )
++}
+diff --git a/components/agency/sidebar.tsx b/components/agency/sidebar.tsx
+index c719a47..a1b9b29 100644
+--- a/components/agency/sidebar.tsx
++++ b/components/agency/sidebar.tsx
+@@ -16,6 +16,7 @@ import {
+   Share2,
+   ShieldCheck,
+   Film,
++  BarChart2,
+ } from "lucide-react"
+ 
+ const navGroups = [
+@@ -27,6 +28,7 @@ const navGroups = [
+       { href: "/agency/workspace", label: "Workspace", icon: Kanban, exact: false },
+       { href: "/agency/studio", label: "Content Studio", icon: Sparkles, exact: false },
+       { href: "/agency/neural", label: "Neural Score", icon: Brain, exact: false },
++      { href: "/agency/analytics", label: "Analytics", icon: BarChart2, exact: false },
+     ],
+   },
+   {
+@@ -111,8 +113,12 @@ export function AgencySidebar() {
+           <div className="text-[9px] font-semibold text-white/20 uppercase tracking-[0.18em] px-3 mb-2">
+             Account
+           </div>
+-          <Link href="/agency">
+-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-all cursor-pointer">
++          <Link href="/agency/settings">
++            <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer ${
++              pathname.startsWith("/agency/settings")
++                ? "bg-violet-600/15 text-violet-300 border border-violet-500/25"
++                : "text-white/40 hover:text-white/70 hover:bg-white/[0.04] border border-transparent"
++            }`}>
+               <Settings className="w-4 h-4" />
+               Settings
+             </div>
+diff --git a/lib/local-stats.ts b/lib/local-stats.ts
+new file mode 100644
+index 0000000..91e30d4
+--- /dev/null
++++ b/lib/local-stats.ts
+@@ -0,0 +1,113 @@
++/**
++ * Lightweight local activity log + usage stats for Mastical OS.
++ * Stored in localStorage so the dashboard reflects what the user
++ * actually did (generated content, scored content, chat sessions)
++ * instead of hardcoded demo numbers.
++ */
++
++export type ActivityKind = "generate" | "score" | "chat" | "campaign"
++
++export interface ActivityEvent {
++  kind: ActivityKind
++  message: string
++  ts: number // epoch ms
++  score?: number
++}
++
++const KEY = "mastical:activity"
++const MAX_EVENTS = 50
++
++function safeParse(raw: string | null): ActivityEvent[] {
++  if (!raw) return []
++  try {
++    const arr = JSON.parse(raw)
++    return Array.isArray(arr) ? arr : []
++  } catch {
++    return []
++  }
++}
++
++export function getActivity(): ActivityEvent[] {
++  if (typeof window === "undefined") return []
++  return safeParse(window.localStorage.getItem(KEY))
++}
++
++export function logActivity(event: Omit<ActivityEvent, "ts">) {
++  if (typeof window === "undefined") return
++  const events = getActivity()
++  events.unshift({ ...event, ts: Date.now() })
++  window.localStorage.setItem(KEY, JSON.stringify(events.slice(0, MAX_EVENTS)))
++  // Let any open dashboard update live
++  window.dispatchEvent(new CustomEvent("mastical:activity"))
++}
++
++export interface UsageStats {
++  contentGenerated: number
++  scoresRun: number
++  chatSessions: number
++  avgNeuralScore: number | null
++  thisWeek: { generated: number; scored: number }
++}
++
++export function getStats(): UsageStats {
++  const events = getActivity()
++  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
++  const scores = events.filter((e) => typeof e.score === "number").map((e) => e.score as number)
++  return {
++    contentGenerated: events.filter((e) => e.kind === "generate").length,
++    scoresRun: events.filter((e) => e.kind === "score").length,
++    chatSessions: events.filter((e) => e.kind === "chat").length,
++    avgNeuralScore: scores.length
++      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
++      : null,
++    thisWeek: {
++      generated: events.filter((e) => e.kind === "generate" && e.ts > weekAgo).length,
++      scored: events.filter((e) => e.kind === "score" && e.ts > weekAgo).length,
++    },
++  }
++}
++
++export function timeAgo(ts: number): string {
++  const diff = Date.now() - ts
++  const m = Math.floor(diff / 60000)
++  if (m < 1) return "just now"
++  if (m < 60) return `${m}m ago`
++  const h = Math.floor(m / 60)
++  if (h < 24) return `${h}h ago`
++  const d = Math.floor(h / 24)
++  return `${d}d ago`
++}
++
++/** Settings stored locally (defaults used to prefill Studio & Chat) */
++export interface LocalSettings {
++  workspaceName: string
++  userName: string
++  defaultBrand: string
++  defaultAudience: string
++  defaultTone: string
++}
++
++const SETTINGS_KEY = "mastical:settings"
++
++export function getSettings(): LocalSettings {
++  const fallback: LocalSettings = {
++    workspaceName: "My Workspace",
++    userName: "Admin",
++    defaultBrand: "",
++    defaultAudience: "",
++    defaultTone: "Professional",
++  }
++  if (typeof window === "undefined") return fallback
++  try {
++    const raw = window.localStorage.getItem(SETTINGS_KEY)
++    return raw ? { ...fallback, ...JSON.parse(raw) } : fallback
++  } catch {
++    return fallback
++  }
++}
++
++export function saveSettings(settings: LocalSettings) {
++  if (typeof window === "undefined") return
++  window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
++  window.dispatchEvent(new CustomEvent("mastical:settings"))
++}
+diff --git a/lib/utils.ts b/lib/utils.ts
+index d6e444e..d2721bc 100644
+--- a/lib/utils.ts
++++ b/lib/utils.ts
+@@ -1,7 +1,6 @@
+ import { clsx, type ClassValue } from 'clsx'
+ import { twMerge } from 'tailwind-merge'
+ import { useState, useEffect } from 'react'
+-import type { TextBlock } from '@/components/tile-card'
+ 
+ export function cn(...inputs: ClassValue[]) {
+   return twMerge(clsx(inputs))
+@@ -19,22 +18,3 @@ export function useModKey(): string {
+   }, [])
+   return mod
+ }
+-
+-/**
+- * Returns the set of block IDs that are "connected" to the hovered block,
+- * based on shared category or influencedBy relationships.
+- * Used by tiling-area and kanban-area for the connection-hover dimming effect.
+- */
+-export function getRelatedIds(hoveredId: string, blocks: TextBlock[]): Set<string> {
+-  const hovered = blocks.find(b => b.id === hoveredId)
+-  if (!hovered) return new Set()
+-
+-  const related = new Set<string>([hoveredId])
+-  blocks.forEach(b => {
+-    if (b.id === hoveredId) return
+-    const hoveredPointsToB = hovered.influencedBy?.includes(b.id) ?? false
+-    const bPointsToHovered = b.influencedBy?.includes(hoveredId) ?? false
+-    if (hoveredPointsToB || bPointsToHovered) related.add(b.id)
+-  })
+-  return related
+-}
+diff --git a/next.config.mjs b/next.config.mjs
+index e33427e..360ffe8 100644
+--- a/next.config.mjs
++++ b/next.config.mjs
+@@ -47,7 +47,7 @@ const nextConfig = {
+               "default-src 'self'",
+               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cloud.umami.is",
+               "style-src 'self' 'unsafe-inline'",
+-              "connect-src 'self' https://openrouter.ai https://api.openai.com https://api.z.ai https://cloud.umami.is https://api-gateway.umami.dev",
++              "connect-src 'self' https://openrouter.ai https://api.openai.com https://api.z.ai https://cloud.umami.is https://api-gateway.umami.dev https://*.supabase.co wss://*.supabase.co",
+               "img-src 'self' data: blob: https://i.ytimg.com",
+               "font-src 'self' data:",
+               "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+diff --git a/package-lock.json b/package-lock.json
+index 7e504b2..1491b90 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -47,6 +47,7 @@
+         "date-fns": "4.1.0",
+         "embla-carousel-react": "8.6.0",
+         "framer-motion": "^11.18.0",
++        "geist": "^1.7.2",
+         "input-otp": "1.4.2",
+         "lucide-react": "^0.564.0",
+         "next": "^16.2.2",
+@@ -143,7 +144,6 @@
+       "integrity": "sha512-CGOfOJqWjg2qW/Mb6zNsDm+u5vFQ8DxXfbM09z69p5Z6+mE1ikP2jUXw+j42Pf1XTYED2Rni5f95npYeuwMDQA==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@babel/code-frame": "^7.29.0",
+         "@babel/generator": "^7.29.0",
+@@ -1589,7 +1589,6 @@
+       "integrity": "sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "engines": {
+         "node": "^14.21.3 || >=16"
+       },
+@@ -4076,7 +4075,6 @@
+       "resolved": "https://registry.npmjs.org/@types/react/-/react-19.2.14.tgz",
+       "integrity": "sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==",
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "csstype": "^3.2.2"
+       }
+@@ -4087,7 +4085,6 @@
+       "integrity": "sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==",
+       "devOptional": true,
+       "license": "MIT",
+-      "peer": true,
+       "peerDependencies": {
+         "@types/react": "^19.2.0"
+       }
+@@ -4405,7 +4402,6 @@
+         }
+       ],
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "baseline-browser-mapping": "^2.9.0",
+         "caniuse-lite": "^1.0.30001759",
+@@ -5267,7 +5263,6 @@
+       "resolved": "https://registry.npmjs.org/d3-selection/-/d3-selection-3.0.0.tgz",
+       "integrity": "sha512-fmTRWbNMmsmWq6xJV8D19U/gw/bwrHfNXxrIN+HfZgnzqTHp9jOmKMhsTUjXOJnZOdZY9Q28y4yebKzqDKlxlQ==",
+       "license": "ISC",
+-      "peer": true,
+       "engines": {
+         "node": ">=12"
+       }
+@@ -5622,8 +5617,7 @@
+       "version": "8.6.0",
+       "resolved": "https://registry.npmjs.org/embla-carousel/-/embla-carousel-8.6.0.tgz",
+       "integrity": "sha512-SjWyZBHJPbqxHOzckOfo8lHisEaJWmwd23XppYFYVh10bU66/Pn5tkVkbkCMZVdbUE5eTCI2nD8OyIP4Z+uwkA==",
+-      "license": "MIT",
+-      "peer": true
++      "license": "MIT"
+     },
+     "node_modules/embla-carousel-react": {
+       "version": "8.6.0",
+@@ -5855,7 +5849,6 @@
+       "integrity": "sha512-hIS4idWWai69NezIdRt2xFVofaF4j+6INOpJlVOLDO8zXGpUVEVzIYk12UUi2JzjEzWL3IOAxcTubgz9Po0yXw==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "accepts": "^2.0.0",
+         "body-parser": "^2.2.1",
+@@ -6205,6 +6198,15 @@
+       "dev": true,
+       "license": "BSD-3-Clause"
+     },
++    "node_modules/geist": {
++      "version": "1.7.2",
++      "resolved": "https://registry.npmjs.org/geist/-/geist-1.7.2.tgz",
++      "integrity": "sha512-Gu5lDFa3pLRyoBlBPf0QIFHVdWAnpco7fS1bJm41jyLPFoguBgiubseUN2oLXMgqZ7uxAxDoXcHMhCY/fOTTgg==",
++      "license": "SIL OPEN FONT LICENSE",
++      "peerDependencies": {
++        "next": ">=13.2.0"
++      }
++    },
+     "node_modules/gensync": {
+       "version": "1.0.0-beta.2",
+       "resolved": "https://registry.npmjs.org/gensync/-/gensync-1.0.0-beta.2.tgz",
+@@ -6438,7 +6440,6 @@
+       "integrity": "sha512-jq9l1DM0zVIvsm3lv9Nw9nlJnMNPOcAtsbsgiUhWcFzPE99Gvo6yRTlszSLLYacMeQ6quHD6hMfId8crVHvexw==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "engines": {
+         "node": ">=16.9.0"
+       }
+@@ -9008,7 +9009,6 @@
+       "integrity": "sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "engines": {
+         "node": ">=12"
+       },
+@@ -9045,7 +9045,6 @@
+         }
+       ],
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "nanoid": "^3.3.11",
+         "picocolors": "^1.1.1",
+@@ -9237,7 +9236,6 @@
+       "resolved": "https://registry.npmjs.org/react/-/react-19.2.4.tgz",
+       "integrity": "sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==",
+       "license": "MIT",
+-      "peer": true,
+       "engines": {
+         "node": ">=0.10.0"
+       }
+@@ -9268,7 +9266,6 @@
+       "resolved": "https://registry.npmjs.org/react-dom/-/react-dom-19.2.4.tgz",
+       "integrity": "sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==",
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "scheduler": "^0.27.0"
+       },
+@@ -9281,7 +9278,6 @@
+       "resolved": "https://registry.npmjs.org/react-hook-form/-/react-hook-form-7.71.2.tgz",
+       "integrity": "sha512-1CHvcDYzuRUNOflt4MOq3ZM46AronNJtQ1S7tnX6YN4y72qhgiUItpacZUAQ0TyWYci3yz1X+rXaSxiuEm86PA==",
+       "license": "MIT",
+-      "peer": true,
+       "engines": {
+         "node": ">=18.0.0"
+       },
+@@ -10219,8 +10215,7 @@
+       "version": "4.2.1",
+       "resolved": "https://registry.npmjs.org/tailwindcss/-/tailwindcss-4.2.1.tgz",
+       "integrity": "sha512-/tBrSQ36vCleJkAOsy9kbNTgaxvGbyOamC30PRePTQe/o1MFwEKHQk4Cn7BNGaPtjp+PuUrByJehM1hgxfq4sw==",
+-      "license": "MIT",
+-      "peer": true
++      "license": "MIT"
+     },
+     "node_modules/tapable": {
+       "version": "2.3.0",
+@@ -10407,7 +10402,6 @@
+       "integrity": "sha512-84MVSjMEHP+FQRPy3pX9sTVV/INIex71s9TL2Gm5FG/WG1SqXeKyZ0k7/blY/4FdOzI12CBy1vGc4og/eus0fw==",
+       "dev": true,
+       "license": "Apache-2.0",
+-      "peer": true,
+       "bin": {
+         "tsc": "bin/tsc",
+         "tsserver": "bin/tsserver"
+@@ -10976,7 +10970,6 @@
+       "resolved": "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz",
+       "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==",
+       "license": "MIT",
+-      "peer": true,
+       "funding": {
+         "url": "https://github.com/sponsors/colinhacks"
+       }
+diff --git a/package.json b/package.json
+index 6771abf..b14d1b1 100644
+--- a/package.json
++++ b/package.json
+@@ -48,6 +48,7 @@
+     "date-fns": "4.1.0",
+     "embla-carousel-react": "8.6.0",
+     "framer-motion": "^11.18.0",
++    "geist": "^1.7.2",
+     "input-otp": "1.4.2",
+     "lucide-react": "^0.564.0",
+     "next": "^16.2.2",
+-- 
+2.43.0
+
