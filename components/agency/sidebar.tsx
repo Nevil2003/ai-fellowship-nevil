@@ -33,6 +33,7 @@ const navGroups = [
     label: "Content Tools",
     items: [
       { href: "/agency/clipper", label: "Clipper Tool", icon: Film, exact: false },
+      { href: "/agency/clipper/automation", label: "Auto-Clipper", icon: Zap, exact: false },
     ],
   },
   {
