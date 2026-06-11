@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Share2,
   ShieldCheck,
+  Film,
 } from "lucide-react"
 
 const navGroups = [
@@ -26,6 +27,12 @@ const navGroups = [
       { href: "/agency/workspace", label: "Workspace", icon: Kanban, exact: false },
       { href: "/agency/studio", label: "Content Studio", icon: Sparkles, exact: false },
       { href: "/agency/neural", label: "Neural Score", icon: Brain, exact: false },
+    ],
+  },
+  {
+    label: "Content Tools",
+    items: [
+      { href: "/agency/clipper", label: "Clipper Tool", icon: Film, exact: false },
     ],
   },
   {
