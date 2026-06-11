@@ -1,47 +1,67 @@
-# Supabase setup (optional)
+# Supabase setup
 
-Propstical Canvas runs fully in `localStorage` by default — no backend
-required. Supabase is opt-in and layers cloud sync + auth on top so
-users can access their canvas from multiple devices.
+Mastical OS works in local browser mode without Supabase. Add Supabase when
+you want magic-link sign-in and cloud persistence.
 
-## 1 · Create a project
+## 1. Create the project
 
-1. Go to https://supabase.com → **New Project**
-2. Copy `Project URL` and `anon public` key from **Settings → API**
+1. Open https://supabase.com/dashboard/projects
+2. Create a free project.
+3. Open **Settings -> API** and copy:
+   - Project URL
+   - anon public key
+   - service_role key
 
-## 2 · Add env vars
+## 2. Create the database tables
 
-Copy `.env.example` to `.env.local`:
+Open **SQL Editor -> New query**, paste the full contents of
+`supabase/schema.sql`, then run it once.
 
-```
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
-```
+That single file creates the agency workspace, social hub, clipper, team,
+automation, and bot persistence tables with row-level security.
 
-## 3 · Install + run the schema
+## 3. Enable email magic links
 
-```bash
-npm install @supabase/supabase-js
-```
+In Supabase, open **Authentication -> Providers -> Email** and keep Email
+enabled. Then open **Authentication -> URL Configuration** and set:
 
-Open **SQL Editor → New Query** in Supabase and paste the contents of
-`supabase/schema.sql`. Click **Run**. This creates the `projects`,
-`blocks`, and `ghost_notes` tables with row-level security — every
-user can only read/write their own rows.
-
-## 4 · Enable email auth
-
-**Authentication → Providers → Email** → toggle on *magic link*.
-Set **Site URL** to your deploy URL (or `http://localhost:3000` for
-dev).
-
-## 5 · Restart dev server
-
-```bash
-npm run dev
+```text
+Site URL: https://ai-fellowship-nevil.vercel.app
+Redirect URLs:
+https://ai-fellowship-nevil.vercel.app/**
+http://localhost:3020/**
 ```
 
-When `NEXT_PUBLIC_SUPABASE_URL` is set, `getSupabase()` in
-`lib/supabase.ts` returns a client and `useAuth()` in `lib/use-auth.ts`
-gates cloud sync. When it's blank, both return null and the app falls
-back to localStorage — so pulling the env vars never breaks the app.
+## 4. Add Vercel environment variables
+
+The local folder is linked to the Vercel project. Add these in Vercel project
+settings, or with the Vercel CLI:
+
+```powershell
+vercel env add NEXT_PUBLIC_SUPABASE_URL production
+vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
+vercel env add SUPABASE_SERVICE_ROLE_KEY production
+
+vercel env add NEXT_PUBLIC_SUPABASE_URL preview
+vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY preview
+vercel env add SUPABASE_SERVICE_ROLE_KEY preview
+```
+
+Also put the same values in `.env.local` for local testing:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+## 5. Redeploy
+
+After the env vars are saved:
+
+```powershell
+vercel --prod
+```
+
+Then visit `/agency/settings`. Supabase should show as connected, and
+`/agency/login` will send real magic links.
